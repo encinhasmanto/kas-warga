@@ -34,7 +34,8 @@ function updateUI() {
   document.getElementById("balance").textContent = formatCurrency(balance);
   const list = document.getElementById("transactions");
   list.innerHTML = "";
-  transactions.forEach((item) => {
+  for (let i = transactions.length - 1; i >= 0; i--) {
+    const item = transactions[i];
     const li = document.createElement("li");
     li.innerHTML = `<strong>${item.type}:</strong> ${formatCurrency(
       item.amount
@@ -42,7 +43,7 @@ function updateUI() {
       <em>${item.detail || "-"}</em><br>
       <small>${item.time ? formatDate(item.time) : ""}</small>`;
     list.appendChild(li);
-  });
+  }
 }
 
 function deposit() {
@@ -116,9 +117,9 @@ document.addEventListener("DOMContentLoaded", function () {
       hideAllBlocks();
       if (e.target.name === "propertyType") {
         if (e.target.value === "Rumah") {
-          blockRumah.style.display = "block";
+          blockRumah.style.display = "flex";
         } else if (e.target.value === "Ruko") {
-          blockRuko.style.display = "block";
+          blockRuko.style.display = "flex";
         }
       }
     });
@@ -129,9 +130,9 @@ document.addEventListener("DOMContentLoaded", function () {
     blockRumah.addEventListener("change", function (e) {
       if (e.target.name === "blockRumahType") {
         blockRumahTypeA.style.display =
-          e.target.value === "A" ? "block" : "none";
+          e.target.value === "A" ? "flex" : "none";
         blockRumahTypeB.style.display =
-          e.target.value === "B" ? "block" : "none";
+          e.target.value === "B" ? "flex" : "none";
       }
     });
   }
@@ -145,6 +146,7 @@ function payIuran() {
   );
   let detail = "";
   let amount = 0;
+  let iuranBulan = document.getElementById("iuranJumlahBulan").value;
 
   if (!propertyType) {
     alert("Pilih Ruko atau Rumah terlebih dahulu.");
@@ -159,14 +161,14 @@ function payIuran() {
       return;
     }
     detail = rukoNo.value;
-    amount = 250000;
+    amount = 250000 * iuranBulan; // Assuming 250000 is the monthly fee for Ruko
   } else if (propertyType.value === "Rumah") {
     // Get A or B
     const rumahType = document.querySelector(
       'input[name="blockRumahType"]:checked'
     );
     if (!rumahType) {
-      alert("Pilih blok Rumah (A/B).");
+      alert("Pilih blok Rumah A/B.");
       return;
     }
     // Get selected Rumah number
@@ -185,7 +187,7 @@ function payIuran() {
       return;
     }
     detail = rumahNo.value;
-    amount = 170000;
+    amount = 170000 * iuranBulan; // Assuming 170000 is the monthly fee for Rumah
   }
 
   // Add to balance and transactions

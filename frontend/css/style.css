@@ -1,17 +1,21 @@
+:root {
+  --label-text-color: #bfa100;
+}
+
 body {
   font-family: Arial, sans-serif;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding-top: 40px;
-  background: #f4f4f4;
+  background: #e0e0e0; /* darker grey */
 }
 
 .balanceContainer {
-  background: white;
+  background: #f3f3f3; /* darker white */
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.13);
   width: 300px;
   text-align: center;
   margin-right: 1rem;
@@ -21,6 +25,8 @@ input {
   padding: 10px;
   width: 80%;
   margin-bottom: 10px;
+  background: #f7f7f7; /* slightly darker input */
+  border: 1px solid #bdbdbd; /* darker border */
 }
 
 button {
@@ -32,16 +38,6 @@ button {
   cursor: pointer;
 }
 
-button:nth-child(2) {
-  background: #28a745;
-  color: white;
-}
-
-button:nth-child(3) {
-  background: #dc3545;
-  color: white;
-}
-
 ul {
   list-style-type: none;
   padding: 0;
@@ -50,10 +46,10 @@ ul {
 /* Iuran IPL */
 
 .iuranIPLContainer {
-  background: white;
+  background: #f3f3f3; /* darker white */
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.13);
   width: 300px;
   text-align: center;
   margin-left: 1rem;
@@ -65,24 +61,14 @@ ul {
 #blockRumahTypeB input,
 #blockRuko input {
   padding: 8px;
+  margin: 5px 5px 5px 5px;
   width: 10%;
-  border: 1px solid #ccc;
+  background: #ededed; /* darker input */
+  border: 1px solid #bdbdbd;
   border-radius: 4px;
   box-sizing: border-box;
 }
-#blockRuko {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 8px;
-  background: #fffbea;
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.08);
-  border: 1px solid #e6c200;
-}
+
 #propertyStep,
 #blockRumah,
 #blockRumahTypeA,
@@ -113,8 +99,9 @@ ul {
   color: #bfa100;
   padding: 4px 0 4px 4px;
   border-radius: 4px;
-  transition: background 0.2s;
+  color: var(--label-text-color);
   width: 100%;
+  transition: background 0.2s;
 }
 
 #propertyStep label:hover,
@@ -134,6 +121,61 @@ ul {
   margin-right: 8px;
 }
 
-#blockRumah {
-  margin-bottom: 16px;
+#bayarTransaksi {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+#iuranJumlahBulan,
+#iuranButton {
+  padding: 8px;
+  margin: 5px 5px 5px 5px;
+  border: 1px solid #bdbdbd;
+  border-radius: 7px;
+  box-sizing: border-box;
+}
+
+#iuranJumlahBulan {
+  width: 60%;
+  background: #ededed;
+}
+
+#iuranButton {
+  background: #bfa100;
+  color: white;
+  cursor: pointer;
+  width: 27%;
+}
+
+#iuranButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(230, 194, 0, 0.5);
+}
+#iuranButton:hover {
+  background: #a88a00;
+}
+
+#iuranButton:active {
+  background: #8c7300;
+}
+
+#iuranButton:disabled {
+  background: #e6c200;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#iuranButton:disabled:hover {
+  background: #e6c200;
+}
+
+#iuranJumlahBulan::placeholder {
+  color: #bfa100;
+}
+#iuranJumlahBulan:focus {
+  border-color: #e6c200;
+  outline: none;
 }
