@@ -34,8 +34,9 @@ function updateUI() {
   document.getElementById("balance").textContent = formatCurrency(balance);
   const list = document.getElementById("transactions");
   list.innerHTML = "";
-  for (let i = transactions.length - 1; i >= 0; i--) {
-    const item = transactions[i];
+  // Get the last 10 transactions (most recent first)
+  const latest = transactions.slice(-10).reverse();
+  latest.forEach((item) => {
     const li = document.createElement("li");
     li.innerHTML = `<strong>${item.type}:</strong> ${formatCurrency(
       item.amount
@@ -43,7 +44,7 @@ function updateUI() {
       <em>${item.detail || "-"}</em><br>
       <small>${item.time ? formatDate(item.time) : ""}</small>`;
     list.appendChild(li);
-  }
+  });
 }
 
 function deposit() {
