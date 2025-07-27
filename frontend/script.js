@@ -453,7 +453,7 @@ function getOrInitStatus(name, months = 12) {
 }
 
 // --- Payment Tracker Data Structure ---
-const iuranStatusByYear = {};
+let iuranStatusByYear = {};
 let currentPaymentTab = "Ruko";
 let currentPaymentYear = new Date().getFullYear().toString();
 
@@ -463,6 +463,8 @@ function getOrInitStatusByYear(name, year, months = 12) {
     iuranStatusByYear[year][name] = Array(months).fill(false);
   return iuranStatusByYear[year][name];
 }
+
+loadIuranData();
 
 function renderIuranTable(type, year) {
   let list = [];
