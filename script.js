@@ -7,21 +7,33 @@ const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGx4c2p0ZXFqYWtocnRreHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTk4MzAsImV4cCI6MjA2NzI5NTgzMH0.-bXkcX9k7KrGJUMgZsW2ismgox2Tcf0p9-q9e7kuxhI";
 const supabase = createClient(supabaseURL, supabaseKey);
 
-// Subscribe to changes in the 'transactions' table
+// Subscribe to changes in the 'transactions' and 'payment_tracker' table
 supabase
   .channel("transaction-changes")
   .on(
     "postgres_changes",
     {
-      event: "*", // 'INSERT', 'UPDATE', or 'DELETE' if you want specific
+      event: "*",
       schema: "public",
       table: "transactions",
     },
     (payload) => {
       console.log("Change received!", payload);
 
-      // Optionally, re-fetch transactions from Supabase
       fetchTransactionsFromSupabase();
+    }
+  )
+  .subscribe();
+
+supabase
+  .channel("payment-tracker-channel")
+  .on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "payment_tracker" },
+    (payload) => {
+      console.log("Payment tracker changed:", payload);
+
+      fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
     }
   )
   .subscribe();
@@ -88,6 +100,7 @@ function saveTransactionData() {
   updateUI();
 }
 
+// ---- FETCH TRANSACTIONS FROM SUPABASE ----
 async function fetchTransactionsFromSupabase() {
   const { data, error } = await supabase
     .from("transactions")
@@ -96,12 +109,6 @@ async function fetchTransactionsFromSupabase() {
 
   if (error) {
     console.error("Error fetching data:", error);
-    // } else {
-    //   localTransaction = data;
-    //   localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
-    //   updateUI();
-    // }
-
     return data;
   }
 
@@ -132,6 +139,8 @@ async function fetchTransactionsFromSupabase() {
   // Refresh UI
   updateUI();
 }
+
+// ----------------------------------------------------
 
 // ---- IURAN STATUS ----
 function loadIuranData() {
@@ -267,7 +276,6 @@ function withdraw() {
   const detail = detailInput.value;
   const amount = parseInt(rawValue.replace(/\./g, "")); // remove thousand separator
   if (!isNaN(amount) && amount > 0 && amount <= balance) {
-    // amount = amount * -1; // convert to negative for clarity
     balance = parseInt(balance) - amount; // subtract amount from balance to withdraw (negative amount)
     const newTransaction = {
       type: "Withdraw",
@@ -278,8 +286,6 @@ function withdraw() {
 
     localTransaction.push(newTransaction); // for in-memory use
     saveTransactionData(); // to save online
-
-    // saveTransactionData();
     showTransactionFeedback("Withdraw Correction Success!", "red");
   }
   // Reset inputs
@@ -362,87 +368,121 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // Pay Iuran logic
-document.getElementById("iuranButton").addEventListener("click", payIuran);
-function payIuran() {
-  // Determine which property type is selected
+// --- New Iuran Payment Logic ---
+document
+  .getElementById("iuranButton")
+  .addEventListener("click", handlePayIuranClick);
+
+function parseUnitCode(detailString) {
+  // "R1 - Seblak Nasir" => "R1"
+  return detailString.split(" - ")[0].trim();
+  console.log("Unit code parsed:", unitCode);
+}
+
+async function payIuranAndMarkMonths({
+  unitCode,
+  monthsToMark,
+  amount,
+  detail,
+  time,
+  year,
+}) {
+  // 1) Insert a transaction record
+  const tx = {
+    type: "Deposit",
+    amount,
+    detail, // e.g., "R1 - Seblak Nasir"
+    months_paid: monthsToMark,
+    time: time || new Date().toISOString(),
+  };
+  const { data: txData, error: txErr } = await supabase
+    .from("transactions")
+    .insert([tx])
+    .select();
+
+  if (txErr) {
+    console.error("Insert transaction failed:", txErr);
+    return;
+  }
+
+  // Optional: Verify the unit exists before calling the RPC
+  const { data: unitData, error: unitError } = await supabase
+    .from("units")
+    .select("id")
+    .eq("code", unitCode)
+    .single();
+
+  if (unitError || !unitData) {
+    console.error("Unit not found:", unitCode);
+    // Handle the case where the unit doesn't exist, e.g., show an error
+    return;
+  }
+
+  // 2) Ask the DB to mark earliest false months as paid (true)
+  const { data: rpcData, error: rpcErr } = await supabase.rpc(
+    "mark_iuran_paid",
+    {
+      p_unit_code: unitCode, // e.g., "R1" or "A3"
+      p_year: year, // currentPaymentYear (number)
+      p_months_to_mark: monthsToMark,
+    }
+  );
+
+  if (rpcErr) {
+    console.error("mark_iuran_paid failed:", rpcErr);
+  } else {
+    console.log("Months marked:", rpcData);
+  }
+}
+
+async function handlePayIuranClick() {
+  // Determine the selections
   const propertyType = document.querySelector(
     'input[name="propertyType"]:checked'
-  );
-  let detail = "";
-  let amount = 0;
+  )?.value;
   const iuranJumlahBulanInput = document.getElementById("iuranJumlahBulan");
-  let iuranBulan = parseInt(iuranJumlahBulanInput.value);
-  if (isNaN(iuranBulan) || iuranBulan < 1 || iuranBulan > 12) {
-    alert("Masukkan jumlah bulan yang valid (1-12).");
+  const monthsToMark = parseInt(iuranJumlahBulanInput.value || "0", 10);
+  if (!propertyType || !monthsToMark || monthsToMark <= 0) {
+    alert("Lengkapi pilihan dan jumlah bulan.");
     return;
   }
 
-  if (!propertyType) {
-    alert("Pilih Ruko atau Rumah terlebih dahulu.");
-    return;
-  }
-
-  if (propertyType.value === "Ruko") {
-    // Get selected Ruko number
+  let detail = ""; // e.g., "R1 - Seblak Nasir" or "A3 - Oma Ratna"
+  if (propertyType === "Ruko") {
     const rukoNo = document.querySelector('input[name="blockRukoNo"]:checked');
-    if (!rukoNo) {
-      alert("Pilih nomor Ruko.");
-      return;
-    }
+    if (!rukoNo) return alert("Pilih nomor Ruko.");
     detail = rukoNo.value;
-    amount = 250000 * iuranBulan; // Assuming 250000 is the monthly fee for Ruko
-    markIuranPaidByYear(
-      detail,
-      iuranBulan,
-      currentPaymentYear,
-      currentPaymentTab
-    );
-  } else if (propertyType.value === "Rumah") {
-    // Get A or B
+  } else if (propertyType === "Rumah") {
     const rumahType = document.querySelector(
       'input[name="blockRumahType"]:checked'
     );
-    if (!rumahType) {
-      alert("Pilih blok Rumah A/B.");
-      return;
-    }
-    // Get selected Rumah number
-    let rumahNo = null;
-    if (rumahType.value === "A") {
-      rumahNo = document.querySelector(
-        '#blockRumahTypeA input[name="blockRumahNo"]:checked'
-      );
-    } else if (rumahType.value === "B") {
-      rumahNo = document.querySelector(
-        '#blockRumahTypeB input[name="blockRumahNo"]:checked'
-      );
-    }
-    if (!rumahNo) {
-      alert("Pilih nomor Rumah.");
-      return;
-    }
-    detail = rumahNo.value;
-
-    amount = 170000 * iuranBulan; // Assuming 170000 is the monthly fee for Rumah
-    markIuranPaidByYear(
-      detail,
-      iuranBulan,
-      currentPaymentYear,
-      currentPaymentTab
+    if (!rumahType) return alert("Pilih blok A/B.");
+    const rumahNo = document.querySelector(
+      rumahType.value === "A"
+        ? '#blockRumahTypeA input[name="blockRumahNo"]:checked'
+        : '#blockRumahTypeB input[name="blockRumahNo"]:checked'
     );
+    if (!rumahNo) return alert("Pilih nomor Rumah.");
+    detail = rumahNo.value;
+  } else {
+    // THR branch if add it later
   }
 
-  // Add to balance and transactions
-  balance = parseInt(balance) + amount;
+  const unitCode = parseUnitCode(detail);
+  const amount = (propertyType === "Ruko" ? 250000 : 170000) * monthsToMark;
+  const year = parseInt(currentPaymentYear, 10);
 
-  const newTransaction = {
-    type: "Deposit",
+  // Save to DB and mark months
+  await payIuranAndMarkMonths({
+    unitCode,
+    monthsToMark,
     amount,
     detail,
-    time: new Date().toISOString(),
-  };
-  localTransaction.push(newTransaction); // for in-memory use
-  saveTransactionData();
+    year,
+  });
+
+  // Re-fetch table
+  await fetchAndRenderPaymentTracker(currentPaymentTab, year);
 
   // Optionally, reset selections
   document
@@ -457,11 +497,12 @@ function payIuran() {
   // Reset iuran input
   iuranJumlahBulanInput.value = "";
   iuranJumlahBulanInput.placeholder = "Mau berapa bulan, Pak?";
-
-  renderIuranTable(currentPaymentTab, currentPaymentYear);
 }
 
 updateUI();
+
+// ---- PAYMENT TRACKER ----
+// Menggunakan hard coded list dulu, nanti diganti dari DB dan render otomatis
 
 // List of Ruko, Rumah A, Rumah B, and THR
 const rukoList = [
@@ -516,6 +557,7 @@ const thrList = [
   "A10 - Hendro",
   "A11 - Budi",
   "A12, B1 - Satya",
+  "B1 - Satya",
   "B2 - Haris",
   "B3 - Wuri",
   "B4 - Wahyu",
@@ -550,23 +592,56 @@ function getOrInitStatusByYear(name, year, months = 12) {
 
 loadIuranData();
 
-function renderIuranTable(type, year) {
-  let list = [];
-  let months = 12;
-  if (type === "Ruko") list = rukoList;
-  else if (type === "Rumah") list = [...rumahAList, ...rumahBList];
-  else if (type === "THR") {
-    list = thrList;
-    months = 1;
+// --- New Payment Tracker Render ---
+async function fetchAndRenderPaymentTracker(category, year) {
+  // Get units for this category
+  const { data: units, error: uErr } = await supabase
+    .from("units")
+    .select("id, code, display_name")
+    .eq("category", category)
+    .order("no_sequence_unit", { ascending: true });
+
+  if (uErr) {
+    console.error(uErr);
+    return;
   }
 
+  // Batch query tracker rows for these units & year
+  const unitIds = units.map((u) => u.id);
+  if (unitIds.length === 0) {
+    document.getElementById("iuranTableContent").innerHTML = "<p>No units.</p>";
+    return;
+  }
+
+  const { data: rows, error: rErr } = await supabase
+    .from("payment_tracker")
+    .select("unit_id, year, month_index, is_checked")
+    .in("unit_id", unitIds)
+    .eq("year", year);
+
+  if (rErr) {
+    console.error(rErr);
+    return;
+  }
+
+  // Build a quick lookup: unit_id -> [12 booleans]
+  const byUnit = new Map();
+  units.forEach((u) => byUnit.set(u.id, Array(12).fill(false)));
+  rows.forEach((r) => {
+    if (r.month_index >= 0 && r.month_index <= 11) {
+      byUnit.get(r.unit_id)[r.month_index] = !!r.is_checked;
+    }
+  });
+
+  // Render
+  let months = 12;
   let html = `<table class="iuranTable"><thead><tr><th>Nama</th>`;
-  for (let i = 1; i <= months; i++)
-    html += `<th>${type === "THR" ? "THR" : i}</th>`;
+  for (let i = 1; i <= months; i++) html += `<th>${i}</th>`;
   html += `</tr></thead><tbody>`;
 
-  list.forEach((name) => {
-    const status = getOrInitStatusByYear(name, year, months);
+  units.forEach((u) => {
+    const status = byUnit.get(u.id) || Array(12).fill(false);
+    const name = `${u.code} - ${u.display_name}`;
     html += `<tr><td>${name}</td>`;
     for (let i = 0; i < months; i++) {
       const paidClass = status[i] ? "paid-cell" : "";
@@ -576,6 +651,7 @@ function renderIuranTable(type, year) {
     }
     html += `</tr>`;
   });
+
   html += `</tbody></table>`;
   document.getElementById("iuranTableContent").innerHTML = html;
 }
@@ -597,26 +673,26 @@ document.addEventListener("DOMContentLoaded", function () {
   tabRuko.addEventListener("click", function () {
     setActive(tabRuko);
     currentPaymentTab = "Ruko";
-    renderIuranTable(currentPaymentTab, currentPaymentYear);
+    fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
   });
   tabRumah.addEventListener("click", function () {
     setActive(tabRumah);
     currentPaymentTab = "Rumah";
-    renderIuranTable(currentPaymentTab, currentPaymentYear);
+    fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
   });
   tabTHR.addEventListener("click", function () {
     setActive(tabTHR);
     currentPaymentTab = "THR";
-    renderIuranTable(currentPaymentTab, currentPaymentYear);
+    fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
   });
   yearSelect.addEventListener("change", function () {
     currentPaymentYear = yearSelect.value;
-    renderIuranTable(currentPaymentTab, currentPaymentYear);
+    fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
   });
   // Initial render
   currentPaymentYear = yearSelect.value;
   setActive(tabRuko);
-  renderIuranTable(currentPaymentTab, currentPaymentYear);
+  fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
 });
 
 // --- Update iuranStatusByYear when paying iuran ---
