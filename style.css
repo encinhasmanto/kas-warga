@@ -12,6 +12,7 @@
 
 body {
   font-family: Arial, sans-serif;
+  /* font-size: 16px; */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -21,9 +22,20 @@ body {
   background: var(--primary-bg);
 }
 
+#PTTH {
+  display: flex;
+  /* margin-bottom: 20px; */
+  color: var(--label-text-color);
+  font-weight: 1000;
+  font-size: 2rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 #mainFlexContainer {
   display: flex;
-  flex-direction: row;
+  /* flex-direction: row; */
   gap: 40px;
   justify-content: center;
   align-items: flex-start;
@@ -260,7 +272,8 @@ ul {
 }
 .iuranTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--accent-light);
   border-radius: 8px;
   overflow: hidden;
@@ -296,4 +309,120 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+@media (max-width: 900px) {
+  #mainFlexContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+  .balanceContainer,
+  .iuranIPLContainer,
+  .correctionContainer,
+  .transactionsContainer {
+    max-width: 100%;
+    width: 90%;
+  }
+  #paymentTrackerContainer {
+    width: 90%;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 20px;
+  }
+  #PTTH {
+    font-size: 1.5rem;
+  }
+  #iuranTableTabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #iuranTableTabs button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 450px) {
+  #iuranJumlahBulan,
+  #iuranButton {
+    width: 100%;
+  }
+  #bayarTransaksi {
+    flex-direction: column;
+  }
+
+  #paymentTrackerContainer {
+    padding: 15px;
+  }
+
+  #iuranTableContent {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    max-width: 100%;
+    background-color: var(--container-bg);
+  }
+
+  .iuranTable {
+    width: auto;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .iuranTable th,
+  .iuranTable td {
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* Make the first column sticky */
+  .iuranTable th:first-child,
+  .iuranTable td:first-child {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    text-align: left;
+    min-width: 150px;
+    background-clip: padding-box;
+  }
+
+  /* Set proper background colors for sticky elements */
+  .iuranTable th:first-child {
+    background-color: var(--table-header);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    z-index: 3;
+  }
+
+  .iuranTable td:first-child {
+    background-color: var(--accent-light);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  }
+
+  /* For alternating rows */
+  .iuranTable tr:nth-child(even) td:first-child {
+    background-color: var(--table-row-alt);
+  }
+
+  /* Ensure proper stacking context */
+  .iuranTable thead {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Ensure sticky header stays on top */
+  .iuranTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background-color: var(--table-header);
+  }
 }
