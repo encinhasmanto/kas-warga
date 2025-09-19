@@ -1,0 +1,197 @@
+// ---- INITIALIZATION SUPABASE ----
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabaseURL = "https://zjdlxsjteqjakhrtkxzu.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGx4c2p0ZXFqYWtocnRreHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTk4MzAsImV4cCI6MjA2NzI5NTgzMH0.-bXkcX9k7KrGJUMgZsW2ismgox2Tcf0p9-q9e7kuxhI";
+const supabase = createClient(supabaseURL, supabaseKey);
+
+// Initialize Supabase channels
+const transactionChannel = supabase.channel("transaction-changes");
+const paymentTrackerChannel = supabase.channel("payment-tracker-channel");
+
+// Setup transaction channel
+transactionChannel
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "transactions",
+    },
+    (payload) => {
+      console.log("Change received!", payload);
+      fetchTransactionsFromSupabase();
+    }
+  )
+  .subscribe((status) => {
+    console.log("Transaction channel status:", status);
+  });
+
+// Setup payment tracker channel
+paymentTrackerChannel
+  .on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "payment_tracker" },
+    (payload) => {
+      console.log("Payment tracker changed:", payload);
+      fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
+    }
+  )
+  .subscribe((status) => {
+    console.log("Payment tracker channel status:", status);
+  });
+
+// Cleanup function for channels
+window.addEventListener('beforeunload', () => {
+  transactionChannel.unsubscribe();
+  paymentTrackerChannel.unsubscribe();
+});
+
+// ---- BALANCE and TRANSACTIONS ----
+let balance = localStorage.getItem("balance") || 0;
+let localTransaction = JSON.parse(localStorage.getItem("localTransaction")) || [];
+const syncedTimes = new Set(JSON.parse(localStorage.getItem("syncedTimes")) || []);
+
+function saveTransactionData() {
+  localStorage.setItem("balance", balance);
+  localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
+
+  async function addTransactionToSupabase(transaction) {
+    try {
+      if (syncedTimes.has(transaction.time)) return;
+
+      const { data, error } = await supabase.from("transactions").insert([{
+        type: transaction.type,
+        amount: transaction.amount,
+        time: transaction.time,
+        detail: transaction.detail,
+      }]);
+
+      if (error) throw error;
+
+      console.log("Saved to Supabase:", transaction.detail, transaction.amount, data);
+      transaction.synced = true;
+      syncedTimes.add(transaction.time);
+      localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes]));
+      localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+    }
+  }
+
+  const uniqueToSync = localTransaction.filter(
+    (tx, idx, arr) =>
+      !syncedTimes.has(tx.time) &&
+      arr.findIndex((t) => t.time === tx.time) === idx
+  );
+  
+  uniqueToSync.forEach(addTransactionToSupabase);
+  updateUI();
+}
+
+async function fetchTransactionsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("time", { ascending: true });
+
+    if (error) throw error;
+
+    localTransaction = data;
+    const allTimes = localTransaction.map((tx) => tx.time);
+    const uniqueTimes = Array.from(new Set(allTimes));
+    syncedTimes.clear();
+    uniqueTimes.forEach((t) => syncedTimes.add(t));
+    localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes]));
+
+    balance = 0;
+    localTransaction.forEach((tx) => {
+      if (tx.type === "Deposit" || tx.type === "Withdraw") {
+        balance += tx.amount;
+      }
+    });
+
+    localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
+    localStorage.setItem("balance", balance);
+    updateUI();
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+  }
+}
+
+// Rest of your existing code...
+
+function parseUnitCode(detailString) {
+  // "R1 - Seblak Nasir" => "R1"
+  const unitCode = detailString.split(" - ")[0].trim();
+  console.log("Unit code parsed:", unitCode);
+  return unitCode;
+}
+
+async function fetchAndRenderPaymentTracker(category, year) {
+  try {
+    // Get units for this category
+    const { data: units, error: uErr } = await supabase
+      .from("units")
+      .select("id, code, display_name")
+      .eq("category", category)
+      .order("no_sequence_unit", { ascending: true });
+
+    if (uErr) throw new Error(`Error fetching units: ${uErr.message}`);
+
+    if (!units || units.length === 0) {
+      document.getElementById("iuranTableContent").innerHTML = "<p>No units found for this category.</p>";
+      return;
+    }
+
+    const unitIds = units.map((u) => u.id);
+    const { data: rows, error: rErr } = await supabase
+      .from("payment_tracker")
+      .select("unit_id, year, month_index, is_checked")
+      .in("unit_id", unitIds)
+      .eq("year", year);
+
+    if (rErr) throw new Error(`Error fetching payment data: ${rErr.message}`);
+
+    const byUnit = new Map();
+    units.forEach((u) => byUnit.set(u.id, Array(12).fill(false)));
+    
+    if (rows) {
+      rows.forEach((r) => {
+        if (r.month_index >= 0 && r.month_index <= 11) {
+          byUnit.get(r.unit_id)[r.month_index] = !!r.is_checked;
+        }
+      });
+    }
+
+    let months = 12;
+    let html = `<table class="iuranTable"><thead><tr><th>Nama</th>`;
+    for (let i = 1; i <= months; i++) html += `<th>${i}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    units.forEach((u) => {
+      const status = byUnit.get(u.id) || Array(12).fill(false);
+      const name = `${u.code} - ${u.display_name}`;
+      html += `<tr><td>${name}</td>`;
+      for (let i = 0; i < months; i++) {
+        const paidClass = status[i] ? "paid-cell" : "";
+        html += `<td class="${paidClass}"><input type="checkbox" disabled ${
+          status[i] ? "checked" : ""
+        }></td>`;
+      }
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    document.getElementById("iuranTableContent").innerHTML = html;
+
+  } catch (error) {
+    console.error("Error in fetchAndRenderPaymentTracker:", error);
+    document.getElementById("iuranTableContent").innerHTML = 
+      `<p>Error loading data: ${error.message}. Please try again.</p>`;
+  }
+}
+
+// Continue with the rest of your existing code...

@@ -7,9 +7,14 @@ const supabaseKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGx4c2p0ZXFqYWtocnRreHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTk4MzAsImV4cCI6MjA2NzI5NTgzMH0.-bXkcX9k7KrGJUMgZsW2ismgox2Tcf0p9-q9e7kuxhI";
 const supabase = createClient(supabaseURL, supabaseKey);
 
-// Subscribe to changes in the 'transactions' and 'payment_tracker' table
-supabase
-  .channel("transaction-changes")
+const transactionChannel = supabase.channel("transaction-changes");
+const paymentTrackerChannel = supabase.channel("payment-tracker-channel");
+// // Subscribe to changes in the 'transactions' and 'payment_tracker' table
+// supabase
+//   .channel("transaction-changes")
+
+// Setup transaction channel
+transactionChannel
   .on(
     "postgres_changes",
     {
@@ -19,24 +24,34 @@ supabase
     },
     (payload) => {
       console.log("Change received!", payload);
-
       fetchTransactionsFromSupabase();
     }
   )
-  .subscribe();
-
-supabase
-  .channel("payment-tracker-channel")
+  // .subscribe();
+  .subscribe((status) => {
+    console.log("Transaction channel status:", status);
+  });
+// supabase
+// .channel("payment-tracker-channel")
+paymentTrackerChannel
   .on(
     "postgres_changes",
     { event: "*", schema: "public", table: "payment_tracker" },
     (payload) => {
       console.log("Payment tracker changed:", payload);
-
       fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
     }
   )
-  .subscribe();
+  // .subscribe();
+  .subscribe((status) => {
+    console.log("Payment tracker channel status:", status);
+  });
+
+// Cleanup function for channels
+window.addEventListener("beforeunload", () => {
+  transactionChannel.unsubscribe();
+  paymentTrackerChannel.unsubscribe();
+});
 
 // ---- BALANCE and TRANSACTIONS ----
 // ---- SETUP LOCAL STORAGE - BALANCE & TRANSACTIONS ----
@@ -375,8 +390,10 @@ document
 
 function parseUnitCode(detailString) {
   // "R1 - Seblak Nasir" => "R1"
-  return detailString.split(" - ")[0].trim();
+  // return detailString.split(" - ")[0].trim(); harusnya dihapus return setelah console log
+  const unitCode = detailString.split(" - ")[0].trim();
   console.log("Unit code parsed:", unitCode);
+  return unitCode;
 }
 
 async function payIuranAndMarkMonths({

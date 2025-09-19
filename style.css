@@ -231,6 +231,8 @@ ul {
   max-width: 900px;
   box-shadow: 0 2px 8px rgba(0, 153, 168, 0.08);
   color: var(--label-text-color);
+  position: relative;
+  overflow: hidden;
 }
 #paymentTrackerContainer h1 {
   color: var(--accent);
@@ -367,6 +369,7 @@ ul {
     border-radius: 8px;
     max-width: 100%;
     background-color: var(--container-bg);
+    isolation: isolate;
   }
 
   .iuranTable {
@@ -374,6 +377,7 @@ ul {
     min-width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    position: relative;
   }
 
   .iuranTable th,
@@ -393,6 +397,7 @@ ul {
     text-align: left;
     min-width: 150px;
     background-clip: padding-box;
+    border-right: 2px solid var(--border-color);
   }
 
   /* Set proper background colors for sticky elements */
@@ -410,6 +415,14 @@ ul {
   /* For alternating rows */
   .iuranTable tr:nth-child(even) td:first-child {
     background-color: var(--table-row-alt);
+  }
+
+  /* Fix for sticky column */
+  .iuranTable tbody tr td:first-child {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    z-index: 1;
   }
 
   /* Ensure proper stacking context */
