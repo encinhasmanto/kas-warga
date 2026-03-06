@@ -25,7 +25,7 @@ transactionChannel
     (payload) => {
       console.log("Change received!", payload);
       fetchTransactionsFromSupabase();
-    }
+    },
   )
   // .subscribe();
   .subscribe((status) => {
@@ -40,7 +40,7 @@ paymentTrackerChannel
     (payload) => {
       console.log("Payment tracker changed:", payload);
       fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
-    }
+    },
   )
   // .subscribe();
   .subscribe((status) => {
@@ -62,7 +62,7 @@ let localTransaction =
 
 // For tracking synced transactions by time
 const syncedTimes = new Set(
-  JSON.parse(localStorage.getItem("syncedTimes")) || []
+  JSON.parse(localStorage.getItem("syncedTimes")) || [],
 );
 
 function saveTransactionData() {
@@ -89,14 +89,14 @@ function saveTransactionData() {
         "Saved to Supabase:",
         transaction.detail,
         transaction.amount,
-        data
+        data,
       );
       transaction.synced = true; // Mark as synced
       syncedTimes.add(transaction.time); // Add to set
       localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes])); // Save set
       localStorage.setItem(
         "localTransaction",
-        JSON.stringify(localTransaction)
+        JSON.stringify(localTransaction),
       );
     }
   }
@@ -105,7 +105,7 @@ function saveTransactionData() {
   const uniqueToSync = localTransaction.filter(
     (tx, idx, arr) =>
       !syncedTimes.has(tx.time) &&
-      arr.findIndex((t) => t.time === tx.time) === idx
+      arr.findIndex((t) => t.time === tx.time) === idx,
   );
   uniqueToSync.forEach((transaction) => {
     addTransactionToSupabase(transaction);
@@ -150,6 +150,9 @@ async function fetchTransactionsFromSupabase() {
   // Save to localStorage
   localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
   localStorage.setItem("balance", balance);
+
+  // Reset pagination to page 1 when fetching new data
+  currentTransactionPage = 1;
 
   // Refresh UI
   updateUI();
@@ -203,6 +206,11 @@ function formatDate(date) {
   });
 }
 
+// ---- PAGINATION ----
+let currentTransactionPage = 1;
+const TRANSACTIONS_PER_PAGE = 10;
+const MAX_PAGES = 3;
+
 // ---- UPDATE UI ----
 // update the UI in real-time as new transactions are added or the balance changes.
 const updateUI = function () {
@@ -210,14 +218,32 @@ const updateUI = function () {
   const list = document.getElementById("transactionsHistory");
   list.innerHTML = "";
 
-  // Fetch transactions from Supabase and update local data, then update UI
+  // Get all transactions, sorted most recent first
+  const allTransactions = [...localTransaction].reverse();
 
-  // Get the last 10 transactions (most recent first) and loop through them. Without older and later button
-  const latest = localTransaction.slice(-10).reverse();
-  latest.forEach((item) => {
+  // LIMIT: Only keep the latest 30 transactions (3 pages × 10 per page)
+  const maxTransactions = TRANSACTIONS_PER_PAGE * MAX_PAGES; // 10 × 3 = 30
+  const limitedTransactions = allTransactions.slice(0, maxTransactions);
+
+  // Calculate pagination
+  const totalTransactions = limitedTransactions.length;
+  const totalPages = Math.ceil(totalTransactions / TRANSACTIONS_PER_PAGE);
+
+  // Ensure current page is valid
+  if (currentTransactionPage > totalPages) {
+    currentTransactionPage = Math.max(1, totalPages);
+  }
+
+  // Get transactions for current page
+  const startIndex = (currentTransactionPage - 1) * TRANSACTIONS_PER_PAGE;
+  const endIndex = startIndex + TRANSACTIONS_PER_PAGE;
+  const pageTransactions = limitedTransactions.slice(startIndex, endIndex);
+
+  // Render transactions
+  pageTransactions.forEach((item) => {
     const isDeposit = item.type === "Deposit";
     const mainColor = isDeposit ? "#28a745" : "#dc3545";
-    const lightColor = isDeposit ? "#e6f4ea" : "#fdeaea"; // lighter green/red background
+    const lightColor = isDeposit ? "#e6f4ea" : "#fdeaea";
     const barColor = isDeposit ? "#28a745" : "#dc3545";
     const li = document.createElement("li");
     li.innerHTML = `
@@ -237,11 +263,11 @@ const updateUI = function () {
           flex: 1;
         ">
           <strong style="color:${mainColor}; font-weight:bold;">${
-      item.type
-    }:</strong> 
+            item.type
+          }:</strong> 
           <span style="color:${mainColor}; font-weight:bold;">${formatCurrency(
-      item.amount
-    )}</span><br>
+            item.amount,
+          )}</span><br>
           <em style="color:#888;">${item.detail || "-"}</em><br>
           <small style="color:#aaa;">${
             item.time ? formatDate(item.time) : ""
@@ -251,6 +277,83 @@ const updateUI = function () {
     `;
     list.appendChild(li);
   });
+
+  // Remove old pagination if it exists
+  const oldPagination = document.getElementById("transactionPagination");
+  if (oldPagination) {
+    oldPagination.remove();
+  }
+
+  // Render pagination controls only if there are multiple pages
+  if (totalPages > 1) {
+    const paginationDiv = document.createElement("div");
+    paginationDiv.id = "transactionPagination";
+    paginationDiv.style.cssText = `
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    `;
+
+    // Previous button
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "← Newer";
+    prevBtn.style.cssText = `
+      padding: 8px 12px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      display: ${currentTransactionPage === 1 ? "none" : "block"};
+    `;
+    prevBtn.disabled = currentTransactionPage === 1;
+    prevBtn.addEventListener("click", () => {
+      if (currentTransactionPage > 1) {
+        currentTransactionPage--;
+        updateUI();
+      }
+    });
+    paginationDiv.appendChild(prevBtn);
+
+    // Page indicator
+    const pageInfo = document.createElement("span");
+    pageInfo.textContent = `Page ${currentTransactionPage} of ${totalPages}`;
+    pageInfo.style.cssText = `
+      font-weight: bold;
+      color: #333;
+      min-width: 120px;
+      text-align: center;
+    `;
+    paginationDiv.appendChild(pageInfo);
+
+    // Next button
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Older →";
+    nextBtn.style.cssText = `
+      padding: 8px 12px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      display: ${currentTransactionPage === totalPages ? "none" : "block"};
+    `;
+    nextBtn.disabled = currentTransactionPage === totalPages;
+    nextBtn.addEventListener("click", () => {
+      if (currentTransactionPage < totalPages) {
+        currentTransactionPage++;
+        updateUI();
+      }
+    });
+    paginationDiv.appendChild(nextBtn);
+
+    list.parentElement.appendChild(paginationDiv);
+  }
 };
 
 // ---- IuranPay, DEPOSIT and WITHDRAW ----
@@ -272,6 +375,7 @@ function deposit() {
     };
 
     localTransaction.push(newTransaction); // for in-memory use
+    currentTransactionPage = 1; // Reset to page 1 when new transaction added
     saveTransactionData(); // to save online
 
     // saveTransactionData();
@@ -290,7 +394,7 @@ function withdraw() {
   const rawValue = amountInput.value;
   const detail = detailInput.value;
   const amount = parseInt(rawValue.replace(/\./g, "")); // remove thousand separator
-  if (!isNaN(amount) && amount > 0 && amount <= balance) {
+  if (!isNaN(amount) && amount > 0) {
     balance = parseInt(balance) - amount; // subtract amount from balance to withdraw (negative amount)
     const newTransaction = {
       type: "Withdraw",
@@ -300,6 +404,7 @@ function withdraw() {
     };
 
     localTransaction.push(newTransaction); // for in-memory use
+    currentTransactionPage = 1; // Reset to page 1 when new transaction added
     saveTransactionData(); // to save online
     showTransactionFeedback("Withdraw Correction Success!", "red");
   }
@@ -334,6 +439,288 @@ function showTransactionFeedback(message, color) {
   setTimeout(() => {
     feedback.style.display = "none";
   }, 1500);
+}
+
+// ---- DYNAMIC UNITS LOADING ----
+// Step 1: Store units data globally so we can reference it
+let allUnits = [];
+let unitsByCategory = {};
+
+// Step 2: Fetch all units from Supabase
+async function fetchUnitsFromSupabase() {
+  console.log("🔍 fetchUnitsFromSupabase() called");
+
+  // First, let's try to fetch WITHOUT specifying columns to see what columns exist
+  const { data, error } = await supabase
+    .from("units")
+    .select("*")
+    .order("no_sequence_unit", { ascending: true });
+
+  console.log("📊 Raw fetch result:");
+  console.log("Error:", error);
+  console.log("Data:", data);
+  console.log("Data length:", data ? data.length : "null");
+
+  if (error) {
+    console.error("❌ Error fetching units:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    console.warn("⚠️ No units found in database");
+    return;
+  }
+
+  console.log("✅ Raw data from Supabase (COMPLETE OBJECTS):");
+  data.forEach((unit, index) => {
+    console.log(`[${index}]`, unit);
+    console.log(`  - code: "${unit.code}"`);
+    console.log(
+      `  - category: "${unit.category}" (type: ${typeof unit.category})`,
+    );
+    console.log(
+      `  - unit_type: "${unit.unit_type}" (type: ${typeof unit.unit_type})`,
+    );
+    console.log(`  - display_name: "${unit.display_name}"`);
+  });
+
+  allUnits = data;
+
+  // Organize units by category for easy lookup
+  unitsByCategory = {};
+  allUnits.forEach((unit) => {
+    console.log(
+      `Processing unit:`,
+      unit.code,
+      `category: "${unit.category}", type: "${unit.unit_type}"`,
+    );
+    if (!unitsByCategory[unit.category]) {
+      unitsByCategory[unit.category] = [];
+    }
+    unitsByCategory[unit.category].push(unit);
+  });
+
+  console.log("📋 Units organized by category:");
+  console.log("unitsByCategory:", unitsByCategory);
+  console.log(
+    "Ruko count:",
+    unitsByCategory["Ruko"] ? unitsByCategory["Ruko"].length : 0,
+  );
+  console.log(
+    "Rumah count:",
+    unitsByCategory["Rumah"] ? unitsByCategory["Rumah"].length : 0,
+  );
+
+  // NEW: Let's specifically inspect Rumah units
+  if (unitsByCategory["Rumah"]) {
+    console.log("🔍 DETAILED RUMAH UNITS:");
+    unitsByCategory["Rumah"].forEach((unit, i) => {
+      console.log(
+        `Rumah[${i}]: code="${unit.code}", unit_type="${unit.unit_type}", type check A=${unit.unit_type === "A"}, type check B=${unit.unit_type === "B"}`,
+      );
+    });
+  }
+
+  populateDropdowns();
+}
+
+// Step 3: Create HTML for radio buttons dynamically
+function createRadioLabel(unit, radioName) {
+  // Format: "R1 - Seblak Nasir" or "A1 - Reza"
+  const value = `${unit.code} - ${unit.display_name}`;
+  const label = document.createElement("label");
+  label.innerHTML = `
+    <input type="radio" name="${radioName}" value="${value}" />
+    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.display_name}</strong>
+  `;
+  return label;
+}
+
+// Step 4: Populate Ruko dropdown
+function populateRukoOptions() {
+  console.log("🔧 populateRukoOptions() called");
+  const blockRuko = document.getElementById("blockRuko");
+  const rukoUnits = unitsByCategory["Ruko"] || [];
+
+  console.log("Ruko container found:", blockRuko);
+  console.log("Ruko units to populate:", rukoUnits);
+
+  // Clear existing options
+  blockRuko.innerHTML = "";
+
+  if (rukoUnits.length === 0) {
+    console.warn("⚠️ No Ruko units found!");
+    blockRuko.innerHTML = "<p style='color: red;'>No Ruko units found</p>";
+  }
+
+  rukoUnits.forEach((unit, index) => {
+    console.log(
+      `Adding Ruko unit: [${index}] ${unit.code} - ${unit.display_name}`,
+    );
+    blockRuko.appendChild(createRadioLabel(unit, "blockRukoNo"));
+  });
+
+  console.log("✅ Ruko dropdown populated with", rukoUnits.length, "units");
+}
+
+// Step 5: Populate Rumah A dropdown
+function populateRumahAOptions() {
+  console.log("🔧 populateRumahAOptions() called");
+  const blockRumahTypeA = document.getElementById("blockRumahTypeA");
+  const rumahUnits = unitsByCategory["Rumah"] || [];
+
+  console.log("Rumah Type A container found:", blockRumahTypeA);
+  console.log("All Rumah units available:", rumahUnits);
+
+  // Filter only type A units - Extract type from code (first character)
+  const typeAUnits = rumahUnits.filter((u) => {
+    // Get first character of code and check if it's "A"
+    const codeFirstChar = (u.code || "").charAt(0).toUpperCase();
+    const isTypeA = codeFirstChar === "A";
+    console.log(
+      `Checking ${u.code}: first char="${codeFirstChar}", isTypeA=${isTypeA}`,
+    );
+    return isTypeA;
+  });
+
+  console.log("Filtered Type A units:", typeAUnits);
+
+  // Clear existing options
+  blockRumahTypeA.innerHTML = "";
+
+  if (typeAUnits.length === 0) {
+    console.warn("⚠️ No Rumah Type A units found!");
+    blockRumahTypeA.innerHTML =
+      "<p style='color: red;'>No Rumah Type A units found</p>";
+  }
+
+  typeAUnits.forEach((unit, index) => {
+    console.log(
+      `Adding Rumah A unit: [${index}] ${unit.code} - ${unit.display_name}`,
+    );
+    blockRumahTypeA.appendChild(createRadioLabel(unit, "blockRumahNo"));
+  });
+
+  console.log(
+    "✅ Rumah Type A dropdown populated with",
+    typeAUnits.length,
+    "units",
+  );
+}
+
+// Step 6: Populate Rumah B dropdown
+function populateRumahBOptions() {
+  console.log("🔧 populateRumahBOptions() called");
+  const blockRumahTypeB = document.getElementById("blockRumahTypeB");
+  const rumahUnits = unitsByCategory["Rumah"] || [];
+
+  console.log("Rumah Type B container found:", blockRumahTypeB);
+  console.log("All Rumah units available:", rumahUnits);
+
+  // Filter only type B units - Extract type from code (first character)
+  const typeBUnits = rumahUnits.filter((u) => {
+    // Get first character of code and check if it's "B"
+    const codeFirstChar = (u.code || "").charAt(0).toUpperCase();
+    const isTypeB = codeFirstChar === "B";
+    console.log(
+      `Checking ${u.code}: first char="${codeFirstChar}", isTypeB=${isTypeB}`,
+    );
+    return isTypeB;
+  });
+
+  console.log("Filtered Type B units:", typeBUnits);
+
+  // Clear existing options
+  blockRumahTypeB.innerHTML = "";
+
+  if (typeBUnits.length === 0) {
+    console.warn("⚠️ No Rumah Type B units found!");
+    blockRumahTypeB.innerHTML =
+      "<p style='color: red;'>No Rumah Type B units found</p>";
+  }
+
+  typeBUnits.forEach((unit, index) => {
+    console.log(
+      `Adding Rumah B unit: [${index}] ${unit.code} - ${unit.display_name}`,
+    );
+    blockRumahTypeB.appendChild(createRadioLabel(unit, "blockRumahNo"));
+  });
+
+  console.log(
+    "✅ Rumah Type B dropdown populated with",
+    typeBUnits.length,
+    "units",
+  );
+}
+
+// Step 7: Main function to populate all dropdowns
+function populateDropdowns() {
+  console.log(
+    "🎯 populateDropdowns() called - starting to populate all dropdowns",
+  );
+  populateRukoOptions();
+  populateRumahAOptions();
+  populateRumahBOptions();
+  console.log("✅ All dropdowns populated");
+}
+
+// ---- POPULATE THR OPTIONS ----
+function populateTHROptions() {
+  console.log("🔧 populateTHROptions() called");
+  const blockTHR = document.getElementById("blockTHR");
+
+  // For THR, show all units from both Ruko and Rumah
+  const rukoUnits = unitsByCategory["Ruko"] || [];
+  const rumahUnits = unitsByCategory["Rumah"] || [];
+  const allTHRUnits = [...rukoUnits, ...rumahUnits];
+
+  console.log("THR units available (Ruko + Rumah):", allTHRUnits);
+
+  // Clear existing options
+  blockTHR.innerHTML = "";
+
+  if (allTHRUnits.length === 0) {
+    console.warn("⚠️ No units found for THR!");
+    blockTHR.innerHTML = "<p style='color: red;'>No units found for THR</p>";
+    return;
+  }
+
+  allTHRUnits.forEach((unit) => {
+    blockTHR.appendChild(createRadioLabel(unit, "blockTHRNo"));
+  });
+
+  console.log("✅ THR dropdown populated with", allTHRUnits.length, "units");
+}
+
+// ---- POPULATE IURAN TEMBOK OPTIONS ----
+function populateIuranTembokOptions() {
+  const blockIuranTembok = document.getElementById("blockIuranTembok");
+
+  // For Iuran Tembok, we show all Rumah units (both A and B combined)
+  const rumahUnits = unitsByCategory["Rumah"] || [];
+
+  console.log("Iuran Tembok units available:", rumahUnits);
+
+  // Clear existing options
+  blockIuranTembok.innerHTML = "";
+
+  if (rumahUnits.length === 0) {
+    console.warn("⚠️ No Rumah units found for Iuran Tembok!");
+    blockIuranTembok.innerHTML =
+      "<p style='color: red;'>No Rumah units found</p>";
+    return;
+  }
+
+  // Sort and display all Rumah units together
+  rumahUnits.forEach((unit) => {
+    blockIuranTembok.appendChild(createRadioLabel(unit, "blockIuranTembokNo"));
+  });
+
+  console.log(
+    "✅ Iuran Tembok dropdown populated with",
+    rumahUnits.length,
+    "units",
+  );
 }
 
 // ---- PAYMENT OPTIONS FOR ----
@@ -380,6 +767,51 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
+
+  // ---- PAYMENT TYPE SELECTION ----
+  const paymentTypeBtns = document.querySelectorAll(".paymentTypeBtn");
+  const sectionIPL = document.getElementById("sectionIPL");
+  const sectionTHR = document.getElementById("sectionTHR");
+  const sectionIuranTembok = document.getElementById("sectionIuranTembok");
+
+  function hideAllSections() {
+    if (sectionIPL) sectionIPL.style.display = "none";
+    if (sectionTHR) sectionTHR.style.display = "none";
+    if (sectionIuranTembok) sectionIuranTembok.style.display = "none";
+  }
+
+  function removeActiveFromAllButtons() {
+    paymentTypeBtns.forEach((btn) => btn.classList.remove("active"));
+  }
+
+  paymentTypeBtns.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      removeActiveFromAllButtons();
+      this.classList.add("active");
+
+      const paymentType = this.getAttribute("data-type");
+      hideAllSections();
+
+      if (paymentType === "IPL") {
+        if (sectionIPL) sectionIPL.style.display = "block";
+      } else if (paymentType === "THR") {
+        if (sectionTHR) sectionTHR.style.display = "block";
+        populateTHROptions();
+      } else if (paymentType === "IuranLain") {
+        if (sectionIuranTembok) sectionIuranTembok.style.display = "block";
+        populateIuranTembokOptions();
+      }
+    });
+  });
+
+  // Set IPL as default active button on page load
+  const btnIPL = document.getElementById("btnIPL");
+  if (btnIPL) {
+    btnIPL.click();
+  }
+
+  // Load units from Supabase on page load
+  fetchUnitsFromSupabase();
 });
 
 // Pay Iuran logic
@@ -442,7 +874,7 @@ async function payIuranAndMarkMonths({
       p_unit_code: unitCode, // e.g., "R1" or "A3"
       p_year: year, // currentPaymentYear (number)
       p_months_to_mark: monthsToMark,
-    }
+    },
   );
 
   if (rpcErr) {
@@ -455,7 +887,7 @@ async function payIuranAndMarkMonths({
 async function handlePayIuranClick() {
   // Determine the selections
   const propertyType = document.querySelector(
-    'input[name="propertyType"]:checked'
+    'input[name="propertyType"]:checked',
   )?.value;
   const iuranJumlahBulanInput = document.getElementById("iuranJumlahBulan");
   const monthsToMark = parseInt(iuranJumlahBulanInput.value || "0", 10);
@@ -471,13 +903,13 @@ async function handlePayIuranClick() {
     detail = rukoNo.value;
   } else if (propertyType === "Rumah") {
     const rumahType = document.querySelector(
-      'input[name="blockRumahType"]:checked'
+      'input[name="blockRumahType"]:checked',
     );
     if (!rumahType) return alert("Pilih blok A/B.");
     const rumahNo = document.querySelector(
       rumahType.value === "A"
         ? '#blockRumahTypeA input[name="blockRumahNo"]:checked'
-        : '#blockRumahTypeB input[name="blockRumahNo"]:checked'
+        : '#blockRumahTypeB input[name="blockRumahNo"]:checked',
     );
     if (!rumahNo) return alert("Pilih nomor Rumah.");
     detail = rumahNo.value;
@@ -707,7 +1139,9 @@ document.addEventListener("DOMContentLoaded", function () {
     fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
   });
   // Initial render
-  currentPaymentYear = yearSelect.value;
+  const currentYear = new Date().getFullYear().toString();
+  yearSelect.value = currentYear;
+  currentPaymentYear = currentYear;
   setActive(tabRuko);
   fetchAndRenderPaymentTracker(currentPaymentTab, currentPaymentYear);
 });

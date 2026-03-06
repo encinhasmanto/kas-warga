@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -22,201 +22,98 @@
           <h2>Balance: <span id="balance">Rp 0</span></h2>
         </div>
         <div class="iuranIPLContainer">
-          <h1>Iuran IPL</h1>
-          <h2>Pembayaran iuran</h2>
+          <h1>Payment</h1>
+          <div
+            id="paymentTypeSelector"
+            style="
+              margin-bottom: 16px;
+              display: flex;
+              flex-wrap: wrap;
+              gap: 6px;
+              justify-content: center;
+            "
+          >
+            <button id="btnIPL" class="paymentTypeBtn" data-type="IPL">
+              IPL
+            </button>
+            <button id="btnTHR" class="paymentTypeBtn" data-type="THR">
+              THR
+            </button>
+            <button
+              id="btnIuranLain"
+              class="paymentTypeBtn"
+              data-type="IuranLain"
+            >
+              Iuran Lain
+            </button>
+          </div>
+          <!-- </div> -->
 
-          <!-- Step 1 Radio Option Iuran-->
-          <div id="propertyStep">
-            <label>
-              <input type="radio" name="propertyType" value="Ruko" />
-              Ruko
-            </label>
-            <label>
-              <input type="radio" name="propertyType" value="Rumah" />
-              Rumah
-            </label>
+          <!-- Section: IPL (Ruko & Rumah) -->
+          <div id="sectionIPL" style="display: none">
+            <!-- Step 1 Radio Option Iuran-->
+            <div id="propertyStep">
+              <label>
+                <input type="radio" name="propertyType" value="Ruko" />
+                Ruko
+              </label>
+              <label>
+                <input type="radio" name="propertyType" value="Rumah" />
+                Rumah
+              </label>
+            </div>
+            <!-- Step 2 for Rumah -->
+            <div
+              id="blockRumah"
+              style="display: none; margin-top: 10px; margin-bottom: 10px"
+            >
+              <label>
+                <input type="radio" name="blockRumahType" value="A" />
+                A
+              </label>
+              <label>
+                <input type="radio" name="blockRumahType" value="B" />
+                B
+              </label>
+            </div>
+            <!-- Step 3 for Rumah A -->
+            <div
+              id="blockRumahTypeA"
+              style="display: none; margin-top: 10px; margin-bottom: 10px"
+            >
+              <!-- Will be populated dynamically from Supabase units table -->
+            </div>
+            <!-- Step 3 for Rumah B -->
+            <div
+              id="blockRumahTypeB"
+              style="display: none; margin-top: 10px; margin-bottom: 10px"
+            >
+              <!-- Will be populated dynamically from Supabase units table -->
+            </div>
+            <!-- Step 2 for Ruko -->
+            <div
+              id="blockRuko"
+              style="display: none; margin-top: 10px; margin-bottom: 10px"
+            >
+              <!-- Will be populated dynamically from Supabase units table -->
+            </div>
           </div>
-          <!-- Step 2 for Rumah -->
-          <div
-            id="blockRumah"
-            style="display: none; margin-top: 10px; margin-bottom: 10px"
-          >
-            <label>
-              <input type="radio" name="blockRumahType" value="A" />
-              A
-            </label>
-            <label>
-              <input type="radio" name="blockRumahType" value="B" />
-              B
-            </label>
+
+          <!-- Section: THR -->
+          <div id="sectionTHR" style="display: none">
+            <div id="blockTHR" style="margin-top: 10px; margin-bottom: 10px">
+              <!-- Will be populated dynamically with THR list -->
+            </div>
           </div>
-          <!-- Step 3 for Rumah A -->
-          <div
-            id="blockRumahTypeA"
-            style="display: none; margin-top: 10px; margin-bottom: 10px"
-          >
-            <!-- A1 to A22 -->
-            <label>
-              <input type="radio" name="blockRumahNo" value="A1 - Reza" />
-              A1 -&nbsp;<strong>Reza</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A2 - Oma Yeti" />
-              A2 -&nbsp;<strong>Oma Yeti</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A3 - Oma Ratna" />
-              A3 -&nbsp;<strong>Oma Ratna</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A4 - Mustafa" />
-              A4 -&nbsp;<strong>Mustafa</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A5 - Samuel" />
-              A5 -&nbsp;<strong>Samuel</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A6 - Santoso" />
-              A6 -&nbsp;<strong>Santoso</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A7 - Prabowo" />
-              A7 -&nbsp;<strong>Prabowo</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A8 - Dira" />
-              A8 -&nbsp;<strong>Dira</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A9 - Baru" />
-              A9 -&nbsp;<strong>Baru</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="A10 - Hendro" />
-              A10 -&nbsp;<strong>Hendro</strong></label
+
+          <!-- Section: Iuran Tembok (Iuran Lain) -->
+          <div id="sectionIuranTembok" style="display: none">
+            <div
+              id="blockIuranTembok"
+              style="margin-top: 10px; margin-bottom: 10px"
             >
-            <label>
-              <input type="radio" name="blockRumahNo" value="A11 - Budi" />
-              A11 -&nbsp;<strong>Budi</strong></label
-            >
-            <label>
-              <input type="radio" name="blockRumahNo" value="A12 - Satya" />
-              A12 -&nbsp;<strong>Satya</strong></label
-            >
-          </div>
-          <!-- Step 3 for Rumah B -->
-          <div
-            id="blockRumahTypeB"
-            style="display: none; margin-top: 10px; margin-bottom: 10px"
-          >
-            <!-- B1 to B10 -->
-            <label>
-              <input type="radio" name="blockRumahNo" value="B1 - Satya" />
-              B1 -&nbsp;<strong>Satya</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B2 - Haris" />
-              B2 -&nbsp;<strong>Haris</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B3 - Wuri" />
-              B3 -&nbsp;<strong>Wuri</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B4 - Wahyu" />
-              B4 -&nbsp;<strong>Wahyu</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B5 - Encin" />
-              B5 -&nbsp;<strong>Encin</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B6 - Khunaifi" />
-              B6 -&nbsp;<strong>Khunaifi</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B7 - Rafi" />
-              B7 -&nbsp;<strong>Rafi</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRumahNo" value="B8 - Amir" />
-              B8 -&nbsp;<strong>Amir</strong></label
-            >
-            <label>
-              <input type="radio" name="blockRumahNo" value="B9 - Bahri" />
-              B9 -&nbsp;<strong>Bahri</strong></label
-            >
-            <label>
-              <input type="radio" name="blockRumahNo" value="B10 - Hilda" />
-              B10 -&nbsp;<strong>Hilda</strong>
-            </label>
-          </div>
-          <!-- Step 2 for Ruko -->
-          <div
-            id="blockRuko"
-            style="display: none; margin-top: 10px; margin-bottom: 10px"
-          >
-            <label>
-              <input
-                type="radio"
-                name="blockRukoNo"
-                value="R1 - Seblak Nasir"
-              />
-              R1 -&nbsp;<strong>Seblak Nasir</strong>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="blockRukoNo"
-                value="R2 - Seblak Nasir"
-              />
-              R2 -&nbsp;<strong>Seblak Nasir</strong>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="blockRukoNo"
-                value="R3 - Daily Laudry"
-              />
-              R3 -&nbsp;<strong>Daily Laudry</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R4 - Furniture" />
-              R4 -&nbsp;<strong>Furniture</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R5 - Alex RJM" />
-              R5 -&nbsp;<strong>Alex RJM</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R6 - Rental PS" />
-              R6 -&nbsp;<strong>Rental PS</strong>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="blockRukoNo"
-                value="R7 - Bengkel Motor Global"
-              />
-              R7 -&nbsp;<strong>Bengkel Motor Global</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R8 - Counter HP" />
-              R8 -&nbsp;<strong>Counter HP</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R9 - Counter HP" />
-              R9 -&nbsp;<strong>Counter HP</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R10 - PEC" />
-              R10 -&nbsp;<strong>PEC</strong>
-            </label>
-            <label>
-              <input type="radio" name="blockRukoNo" value="R11 - Pak Gembus" />
-              R11 -&nbsp;<strong>Pak Gembus</strong>
-            </label>
+              <!-- Will be populated dynamically with Rumah units -->
+            </div>
           </div>
 
           <div id="bayarTransaksi">
