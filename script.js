@@ -71,13 +71,13 @@ function saveTransactionData() {
 
   async function addTransactionToSupabase(transaction) {
     // Skip if already synced by time
-    if (syncedTimes.has(transaction.time)) return;
+    if (syncedTimes.has(transaction.transaction_date)) return;
 
     const { data, error } = await supabase.from("transactions").insert([
       {
         type: transaction.type,
         amount: transaction.amount,
-        time: transaction.time,
+        trasnsaction_date: transaction.transaction_date,
         detail: transaction.detail,
       },
     ]);
@@ -92,7 +92,7 @@ function saveTransactionData() {
         data,
       );
       transaction.synced = true; // Mark as synced
-      syncedTimes.add(transaction.time); // Add to set
+      syncedTimes.add(transaction.transaction_date); // Add to set
       localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes])); // Save set
       localStorage.setItem(
         "localTransaction",
@@ -104,8 +104,8 @@ function saveTransactionData() {
   // Deduplicate: only sync transactions whose time is not in syncedTimes and are the first occurrence in localTransaction
   const uniqueToSync = localTransaction.filter(
     (tx, idx, arr) =>
-      !syncedTimes.has(tx.time) &&
-      arr.findIndex((t) => t.time === tx.time) === idx,
+      !syncedTimes.has(tx.transaction_date) &&
+      arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
   );
   uniqueToSync.forEach((transaction) => {
     addTransactionToSupabase(transaction);
@@ -131,7 +131,7 @@ async function fetchTransactionsFromSupabase() {
   localTransaction = data;
 
   // Update syncedTimes to match all transaction times from Supabase
-  const allTimes = localTransaction.map((tx) => tx.time);
+  const allTimes = localTransaction.map((tx) => tx.transaction_date);
   const uniqueTimes = Array.from(new Set(allTimes));
   syncedTimes.clear();
   uniqueTimes.forEach((t) => syncedTimes.add(t));
@@ -270,7 +270,7 @@ const updateUI = function () {
           )}</span><br>
           <em style="color:#888;">${item.detail || "-"}</em><br>
           <small style="color:#aaa;">${
-            item.time ? formatDate(item.time) : ""
+            item.transaction_date ? formatDate(item.transaction_date) : ""
           }</small>
         </div>
       </div>
