@@ -120,7 +120,7 @@ async function fetchTransactionsFromSupabase() {
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
-    .order("time", { ascending: true }); // Get most recent first
+    .order("transaction_date", { ascending: true }); // Get most recent first
 
   if (error) {
     console.error("Error fetching data:", error);
