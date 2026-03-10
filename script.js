@@ -481,7 +481,7 @@ async function fetchUnitsFromSupabase() {
     console.log(
       `  - unit_type: "${unit.unit_type}" (type: ${typeof unit.unit_type})`,
     );
-    console.log(`  - display_name: "${unit.display_name}"`);
+    console.log(`  - name: "${unit.name}"`);
   });
 
   allUnits = data;
@@ -527,11 +527,11 @@ async function fetchUnitsFromSupabase() {
 // Step 3: Create HTML for radio buttons dynamically
 function createRadioLabel(unit, radioName) {
   // Format: "R1 - Seblak Nasir" or "A1 - Reza"
-  const value = `${unit.code} - ${unit.display_name}`;
+  const value = `${unit.code} - ${unit.name}`;
   const label = document.createElement("label");
   label.innerHTML = `
     <input type="radio" name="${radioName}" value="${value}" />
-    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.display_name}</strong>
+    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>
   `;
   return label;
 }
@@ -555,7 +555,7 @@ function populateRukoOptions() {
 
   rukoUnits.forEach((unit, index) => {
     console.log(
-      `Adding Ruko unit: [${index}] ${unit.code} - ${unit.display_name}`,
+      `Adding Ruko unit: [${index}] ${unit.code} - ${unit.name}`,
     );
     blockRuko.appendChild(createRadioLabel(unit, "blockRukoNo"));
   });
@@ -596,7 +596,7 @@ function populateRumahAOptions() {
 
   typeAUnits.forEach((unit, index) => {
     console.log(
-      `Adding Rumah A unit: [${index}] ${unit.code} - ${unit.display_name}`,
+      `Adding Rumah A unit: [${index}] ${unit.code} - ${unit.name}`,
     );
     blockRumahTypeA.appendChild(createRadioLabel(unit, "blockRumahNo"));
   });
@@ -641,7 +641,7 @@ function populateRumahBOptions() {
 
   typeBUnits.forEach((unit, index) => {
     console.log(
-      `Adding Rumah B unit: [${index}] ${unit.code} - ${unit.display_name}`,
+      `Adding Rumah B unit: [${index}] ${unit.code} - ${unit.name}`,
     );
     blockRumahTypeB.appendChild(createRadioLabel(unit, "blockRumahNo"));
   });
@@ -1046,7 +1046,7 @@ async function fetchAndRenderPaymentTracker(category, year) {
   // Get units for this category
   const { data: units, error: uErr } = await supabase
     .from("units")
-    .select("id, code, display_name")
+    .select("id, code, name")
     .eq("category", category)
     .order("no_sequence_unit", { ascending: true });
 
@@ -1090,7 +1090,7 @@ async function fetchAndRenderPaymentTracker(category, year) {
 
   units.forEach((u) => {
     const status = byUnit.get(u.id) || Array(12).fill(false);
-    const name = `${u.code} - ${u.display_name}`;
+    const name = `${u.code} - ${u.name}`;
     html += `<tr><td>${name}</td>`;
     for (let i = 0; i < months; i++) {
       const paidClass = status[i] ? "paid-cell" : "";
