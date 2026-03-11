@@ -77,8 +77,8 @@ function saveTransactionData() {
       {
         type: transaction.type,
         amount: transaction.amount,
+        description: transaction.description,
         trasnsaction_date: transaction.transaction_date,
-        detail: transaction.detail,
       },
     ]);
 
@@ -87,7 +87,7 @@ function saveTransactionData() {
     } else {
       console.log(
         "Saved to Supabase:",
-        transaction.detail,
+        transaction.description,
         transaction.amount,
         data,
       );
