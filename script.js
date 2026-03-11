@@ -70,28 +70,38 @@ function saveTransactionData() {
   localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
 
   async function addTransactionToSupabase(transaction) {
-    // Skip if already synced by time
+    // Skip if already synced by timestamp
     if (syncedTimes.has(transaction.transaction_date)) return;
 
-    const { data, error } = await supabase.from("transactions").insert([
-      {
-        type: transaction.type,
-        amount: transaction.amount,
-        description: transaction.description,
-        trasnsaction_date: transaction.transaction_date,
-      },
-    ]);
+    // Prepare transaction data for Supabase
+    const transactionData = {
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      category_id: transaction.category_id,
+      transaction_date: transaction.transaction_date,
+    };
+
+    // Add category_id if it exists (for withdrawals)
+    if (transaction.category_id) {
+      transactionData.category_id = transaction.category_id;
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert([transactionData]);
 
     if (error) {
       console.error("Insert failed:", error);
     } else {
       console.log(
-        "Saved to Supabase:",
+        "✅ Saved to Supabase:",
         transaction.description,
-        transaction.amount,
+        "Rp" + Math.abs(transaction.amount),
         data,
       );
       transaction.synced = true; // Mark as synced
+      syncedTimes.add(transaction.transaction_date); // Add to set
       syncedTimes.add(transaction.transaction_date); // Add to set
       localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes])); // Save set
       localStorage.setItem(
@@ -106,6 +116,8 @@ function saveTransactionData() {
     (tx, idx, arr) =>
       !syncedTimes.has(tx.transaction_date) &&
       arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
+      !syncedTimes.has(tx.transaction_date) &&
+      arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
   );
   uniqueToSync.forEach((transaction) => {
     addTransactionToSupabase(transaction);
@@ -115,11 +127,56 @@ function saveTransactionData() {
   updateUI();
 }
 
+// FETCH EXPENSE CATEGORIES FROM SUPABASE
+async function fetchExpenseCategoriesFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from("expense_categories")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching expense categories:", error);
+      return;
+    }
+
+    // Populate the category dropdown
+    const categorySelect = document.getElementById("expenseCategory");
+    categorySelect.innerHTML =
+      '<option value="">-- Select Category --</option>';
+
+    if (data && data.length > 0) {
+      data.forEach((category) => {
+        const option = document.createElement("option");
+        option.value = category.id;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+      });
+      console.log("✅ Loaded " + data.length + " expense categories");
+    } else {
+      console.warn("⚠️ No expense categories found");
+    }
+  } catch (err) {
+    console.error("❌ Error loading expense categories:", err);
+  }
+}
+
+// Fetch categories when page loads
+document.addEventListener("DOMContentLoaded", () => {
+  fetchExpenseCategoriesFromSupabase();
+});
+
 // ---- FETCH TRANSACTIONS FROM SUPABASE ----
 async function fetchTransactionsFromSupabase() {
   const { data, error } = await supabase
     .from("transactions")
-    .select("*")
+    .select(
+      `
+      *,
+      category:expense_categories(id, name)
+    `,
+    )
     .order("transaction_date", { ascending: true }); // Get most recent first
 
   if (error) {
@@ -128,9 +185,17 @@ async function fetchTransactionsFromSupabase() {
   }
 
   // Update local transactions array
-  localTransaction = data;
+  localTransaction = data.map((tx) => ({
+    type: tx.type,
+    amount: tx.amount,
+    description: tx.description,
+    category_id: tx.category_id,
+    category_name: tx.category?.name,
+    transaction_date: tx.transaction_date,
+  }));
 
   // Update syncedTimes to match all transaction times from Supabase
+  const allTimes = localTransaction.map((tx) => tx.transaction_date);
   const allTimes = localTransaction.map((tx) => tx.transaction_date);
   const uniqueTimes = Array.from(new Set(allTimes));
   syncedTimes.clear();
@@ -140,10 +205,10 @@ async function fetchTransactionsFromSupabase() {
   // Update balance
   balance = 0;
   localTransaction.forEach((tx) => {
-    if (tx.type === "Deposit") {
+    if (tx.type === "deposit" || tx.type === "Deposit") {
       balance += tx.amount;
-    } else if (tx.type === "Withdraw") {
-      balance += tx.amount;
+    } else if (tx.type === "withdrawal" || tx.type === "Withdraw") {
+      balance += tx.amount; // amount is already negative
     }
   });
 
@@ -171,20 +236,27 @@ if (localTransaction.length && typeof localTransaction[0] === "string") {
   localTransaction = localTransaction.map((str) => ({
     type: str.startsWith("Deposit") ? "Deposit" : "Withdraw",
     amount: parseInt(str.replace(/\D/g, "")),
-    detail: "",
+    description: "",
   }));
 }
 
 // Add thousand separator to amount input
 // removes any non-digit characters, then inserts a dot (.) every 3 digits (e.g., 1000 becomes 1.000)
-const amountInput = document.getElementById("amount");
-const detailInput = document.getElementById("detail");
-if (amountInput) {
-  amountInput.addEventListener("input", function (e) {
-    let value = e.target.value.replace(/\D/g, "");
-    e.target.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  });
-}
+const depositAmountInput = document.getElementById("depositAmount");
+const depositDescriptionInput = document.getElementById("depositDescription");
+const withdrawAmountInput = document.getElementById("withdrawAmount");
+const withdrawDescriptionInput = document.getElementById("withdrawDescription");
+const expenseCategorySelect = document.getElementById("expenseCategory");
+
+// Add thousand separator listeners for both inputs
+[depositAmountInput, withdrawAmountInput].forEach((input) => {
+  if (input) {
+    input.addEventListener("input", function (e) {
+      let value = e.target.value.replace(/\D/g, "");
+      e.target.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    });
+  }
+});
 
 // Format currency => kuncinya ada di formatCurrency dan style "currency"
 function formatCurrency(amount) {
@@ -241,39 +313,52 @@ const updateUI = function () {
 
   // Render transactions
   pageTransactions.forEach((item) => {
-    const isDeposit = item.type === "Deposit";
+    const isDeposit = item.type === "deposit" || item.type === "Deposit";
     const mainColor = isDeposit ? "#28a745" : "#dc3545";
     const lightColor = isDeposit ? "#e6f4ea" : "#fdeaea";
     const barColor = isDeposit ? "#28a745" : "#dc3545";
     const li = document.createElement("li");
+
+    // Prepare transaction label
+    let transactionLabel = isDeposit ? "Deposit" : "Withdraw";
+    let description = item.description || item.description || "-";
+
+    // For withdrawals, add category name if available
+    let categoryLabel = "";
+    if (!isDeposit && item.category_name) {
+      categoryLabel = `<strong>${item.category_name}</strong> - `;
+    }
+
     li.innerHTML = `
     <div style="display: flex; align-items: center; margin-bottom: 8px;">
-    <div style="
-    width: 8px;
-    height: 48px;
-    border-radius: 12px;
-          background: ${barColor};
-          margin-right: 12px;
-          flex-shrink: 0;
-        "></div>
-        <div style="
-          padding: 10px 14px;
-          background: ${lightColor};
-          border-radius: 16px;
-          flex: 1;
-        ">
-          <strong style="color:${mainColor}; font-weight:bold;">${
-            item.type
-          }:</strong> 
-          <span style="color:${mainColor}; font-weight:bold;">${formatCurrency(
-            item.amount,
-          )}</span><br>
-          <em style="color:#888;">${item.detail || "-"}</em><br>
-          <small style="color:#aaa;">${
-            item.transaction_date ? formatDate(item.transaction_date) : ""
-          }</small>
-        </div>
+      <div style="
+        width: 8px;
+        height: 48px;
+        border-radius: 12px;
+        background: ${barColor};
+        margin-right: 12px;
+        flex-shrink: 0;
+      "></div>
+      <div class="transaction-item" style="
+        padding: 10px 14px;
+        background: ${lightColor};
+        border-radius: 16px;
+        flex: 1;
+      ">
+        <strong style="color:${mainColor}; font-weight:bold;">${transactionLabel}:</strong>
+        <span style="color:${mainColor}; font-weight:bold;">${formatCurrency(
+          Math.abs(item.amount),
+        )}</span><br>
+        <em style="color:#888;">${categoryLabel}${description}</em><br>
+        <small style="color:#aaa;">${
+          item.transaction_date
+            ? formatDate(item.transaction_date)
+            : item.time
+              ? formatDate(item.time)
+              : ""
+        }</small>
       </div>
+    </div>
     `;
     list.appendChild(li);
   });
@@ -357,21 +442,80 @@ const updateUI = function () {
 };
 
 // ---- IuranPay, DEPOSIT and WITHDRAW ----
-// DEPOSIT logic function
 // --- SAVE TRANSACTION TO SUPABASE ---
-depositButton.addEventListener("click", deposit);
+// WITHDRAW logic function
+document.getElementById("withdrawButton").addEventListener("click", withdraw);
+function withdraw() {
+  const rawValue = withdrawAmountInput.value;
+  const description = withdrawDescriptionInput.value;
+  const categoryId = expenseCategorySelect.value;
+  const amount = parseInt(rawValue.replace(/\./g, "")); // remove thousand separator
+
+  // Validate inputs
+  if (!categoryId) {
+    showTransactionFeedback("Please select a category!", "red");
+    return;
+  }
+
+  if (isNaN(amount) || amount <= 0) {
+    showTransactionFeedback("Please enter a valid amount!", "red");
+    return;
+  }
+
+  if (!description.trim()) {
+    showTransactionFeedback("Please enter a description!", "red");
+    return;
+  }
+
+  if (!isNaN(amount) && amount > 0) {
+    balance = parseInt(balance) - amount; // subtract amount from balance to withdraw (negative amount)
+    const newTransaction = {
+      type: "withdrawal",
+      amount: -amount, // store as negative for clarity
+      description: description,
+      category_id: categoryId,
+      transaction_date: new Date().toISOString(), // store as ISO string for consistency
+    };
+
+    localTransaction.push(newTransaction); // for in-memory use
+    currentTransactionPage = 1; // Reset to page 1 when new transaction added
+    saveTransactionData(); // to save online
+    showTransactionFeedback("✅ Withdraw recorded successfully!", "green");
+  }
+  // Reset inputs
+  withdrawAmountInput.value = "";
+  withdrawDescriptionInput.value = "";
+  expenseCategorySelect.value = "";
+  withdrawAmountInput.placeholder = "Enter amount";
+  withdrawDescriptionInput.placeholder = "Enter description";
+}
+
+// DEPOSIT logic function
+document.getElementById("depositButton").addEventListener("click", deposit);
 function deposit() {
-  const rawValue = amountInput.value;
-  const detail = detailInput.value;
+  const rawValue = depositAmountInput.value;
+  const description = depositDescriptionInput.value;
   const amount = parseInt(rawValue.replace(/\./g, ""));
+
+  // Validate inputs
+  if (isNaN(amount) || amount <= 0) {
+    showTransactionFeedback("Please enter a valid amount!", "red");
+    return;
+  }
+
+  if (!description.trim()) {
+    showTransactionFeedback("Please enter a description!", "red");
+    return;
+  }
+
   if (!isNaN(amount) && amount > 0) {
     balance = parseInt(balance) + amount;
 
     const newTransaction = {
-      type: "Deposit",
+      type: "deposit",
       amount,
-      detail,
-      time: new Date().toISOString(),
+      description: description,
+      transaction_date: new Date().toISOString(),
     };
 
     localTransaction.push(newTransaction); // for in-memory use
@@ -379,40 +523,13 @@ function deposit() {
     saveTransactionData(); // to save online
 
     // saveTransactionData();
-    showTransactionFeedback("Deposit Correction Success!", "green");
+    showTransactionFeedback("✅ Deposit recorded successfully!", "green");
   }
   // Reset inputs
-  amountInput.value = "";
-  detailInput.value = "";
-  amountInput.placeholder = "Enter amount";
-  detailInput.placeholder = "Enter transaction detail";
-}
-
-// WITHDRAW logic function
-withdrawButton.addEventListener("click", withdraw);
-function withdraw() {
-  const rawValue = amountInput.value;
-  const detail = detailInput.value;
-  const amount = parseInt(rawValue.replace(/\./g, "")); // remove thousand separator
-  if (!isNaN(amount) && amount > 0) {
-    balance = parseInt(balance) - amount; // subtract amount from balance to withdraw (negative amount)
-    const newTransaction = {
-      type: "Withdraw",
-      amount: -amount, // store as negative for clarity
-      detail,
-      time: new Date().toISOString(), // store as ISO string for consistency
-    };
-
-    localTransaction.push(newTransaction); // for in-memory use
-    currentTransactionPage = 1; // Reset to page 1 when new transaction added
-    saveTransactionData(); // to save online
-    showTransactionFeedback("Withdraw Correction Success!", "red");
-  }
-  // Reset inputs
-  amountInput.value = "";
-  detailInput.value = "";
-  amountInput.placeholder = "Enter amount";
-  detailInput.placeholder = "Enter transaction detail";
+  depositAmountInput.value = "";
+  depositDescriptionInput.value = "";
+  depositAmountInput.placeholder = "Enter amount";
+  depositDescriptionInput.placeholder = "Enter description";
 }
 
 // Show PopUp feedback message with color
@@ -482,6 +599,7 @@ async function fetchUnitsFromSupabase() {
       `  - unit_type: "${unit.unit_type}" (type: ${typeof unit.unit_type})`,
     );
     console.log(`  - name: "${unit.name}"`);
+    console.log(`  - name: "${unit.name}"`);
   });
 
   allUnits = data;
@@ -528,9 +646,11 @@ async function fetchUnitsFromSupabase() {
 function createRadioLabel(unit, radioName) {
   // Format: "R1 - Seblak Nasir" or "A1 - Reza"
   const value = `${unit.code} - ${unit.name}`;
+  const value = `${unit.code} - ${unit.name}`;
   const label = document.createElement("label");
   label.innerHTML = `
     <input type="radio" name="${radioName}" value="${value}" />
+    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>
     <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>
   `;
   return label;
@@ -554,9 +674,7 @@ function populateRukoOptions() {
   }
 
   rukoUnits.forEach((unit, index) => {
-    console.log(
-      `Adding Ruko unit: [${index}] ${unit.code} - ${unit.name}`,
-    );
+    console.log(`Adding Ruko unit: [${index}] ${unit.code} - ${unit.name}`);
     blockRuko.appendChild(createRadioLabel(unit, "blockRukoNo"));
   });
 
@@ -595,9 +713,7 @@ function populateRumahAOptions() {
   }
 
   typeAUnits.forEach((unit, index) => {
-    console.log(
-      `Adding Rumah A unit: [${index}] ${unit.code} - ${unit.name}`,
-    );
+    console.log(`Adding Rumah A unit: [${index}] ${unit.code} - ${unit.name}`);
     blockRumahTypeA.appendChild(createRadioLabel(unit, "blockRumahNo"));
   });
 
@@ -640,9 +756,7 @@ function populateRumahBOptions() {
   }
 
   typeBUnits.forEach((unit, index) => {
-    console.log(
-      `Adding Rumah B unit: [${index}] ${unit.code} - ${unit.name}`,
-    );
+    console.log(`Adding Rumah B unit: [${index}] ${unit.code} - ${unit.name}`);
     blockRumahTypeB.appendChild(createRadioLabel(unit, "blockRumahNo"));
   });
 
@@ -820,10 +934,10 @@ document
   .getElementById("iuranButton")
   .addEventListener("click", handlePayIuranClick);
 
-function parseUnitCode(detailString) {
+function parseUnitCode(descriptionString) {
   // "R1 - Seblak Nasir" => "R1"
-  // return detailString.split(" - ")[0].trim(); harusnya dihapus return setelah console log
-  const unitCode = detailString.split(" - ")[0].trim();
+  // return descriptionString.split(" - ")[0].trim(); harusnya dihapus return setelah console log
+  const unitCode = descriptionString.split(" - ")[0].trim();
   console.log("Unit code parsed:", unitCode);
   return unitCode;
 }
@@ -832,17 +946,17 @@ async function payIuranAndMarkMonths({
   unitCode,
   monthsToMark,
   amount,
-  detail,
+  description,
   time,
   year,
 }) {
   // 1) Insert a transaction record
   const tx = {
-    type: "Deposit",
+    type: "deposit",
     amount,
-    detail, // e.g., "R1 - Seblak Nasir"
+    description, // e.g., "R1 - Seblak Nasir"
     months_paid: monthsToMark,
-    time: time || new Date().toISOString(),
+    transaction_date: time || new Date().toISOString(),
   };
   const { data: txData, error: txErr } = await supabase
     .from("transactions")
@@ -896,11 +1010,11 @@ async function handlePayIuranClick() {
     return;
   }
 
-  let detail = ""; // e.g., "R1 - Seblak Nasir" or "A3 - Oma Ratna"
+  let description = ""; // e.g., "R1 - Seblak Nasir" or "A3 - Oma Ratna"
   if (propertyType === "Ruko") {
     const rukoNo = document.querySelector('input[name="blockRukoNo"]:checked');
     if (!rukoNo) return alert("Pilih nomor Ruko.");
-    detail = rukoNo.value;
+    description = rukoNo.value;
   } else if (propertyType === "Rumah") {
     const rumahType = document.querySelector(
       'input[name="blockRumahType"]:checked',
@@ -912,12 +1026,12 @@ async function handlePayIuranClick() {
         : '#blockRumahTypeB input[name="blockRumahNo"]:checked',
     );
     if (!rumahNo) return alert("Pilih nomor Rumah.");
-    detail = rumahNo.value;
+    description = rumahNo.value;
   } else {
     // THR branch if add it later
   }
 
-  const unitCode = parseUnitCode(detail);
+  const unitCode = parseUnitCode(description);
   const amount = (propertyType === "Ruko" ? 250000 : 170000) * monthsToMark;
   const year = parseInt(currentPaymentYear, 10);
 
@@ -926,7 +1040,7 @@ async function handlePayIuranClick() {
     unitCode,
     monthsToMark,
     amount,
-    detail,
+    description,
     year,
   });
 
@@ -1047,6 +1161,7 @@ async function fetchAndRenderPaymentTracker(category, year) {
   const { data: units, error: uErr } = await supabase
     .from("units")
     .select("id, code, name")
+    .select("id, code, name")
     .eq("category", category)
     .order("no_sequence_unit", { ascending: true });
 
@@ -1090,6 +1205,7 @@ async function fetchAndRenderPaymentTracker(category, year) {
 
   units.forEach((u) => {
     const status = byUnit.get(u.id) || Array(12).fill(false);
+    const name = `${u.code} - ${u.name}`;
     const name = `${u.code} - ${u.name}`;
     html += `<tr><td>${name}</td>`;
     for (let i = 0; i < months; i++) {

@@ -131,14 +131,64 @@
       <div id="rightColumn">
         <div class="correctionContainer">
           <h1>Correction</h1>
-          <input type="text" id="amount" placeholder="Enter amount" />
-          <input
-            type="text"
-            id="detail"
-            placeholder="Enter transaction detail"
-          />
-          <button id="depositButton">Deposit</button>
-          <button id="withdrawButton">Withdraw</button>
+
+          <!-- Deposit Section -->
+          <div id="depositSection" class="transaction-section">
+            <img
+              src="./icons/piggy-bank-saving.png"
+              alt="Deposit"
+              class="transaction-icon"
+            />
+            <h3
+              style="
+                margin-top: 0;
+                margin-bottom: 12px;
+                font-size: 14px;
+                color: #28a745;
+              "
+            >
+              Deposit
+            </h3>
+            <input type="text" id="depositAmount" placeholder="Enter amount" />
+            <input
+              type="text"
+              id="depositDescription"
+              placeholder="e.g., IPL Payment - R1 Nasir"
+            />
+            <button id="depositButton">Deposit</button>
+          </div>
+
+          <!-- Separator -->
+          <div style="height: 1px; background: #e3f2e1; margin: 12px 0"></div>
+
+          <!-- Withdraw Section -->
+          <div id="withdrawSection" class="transaction-section">
+            <img
+              src="./icons/piggy-bank-dead-hammer.png"
+              alt="Withdraw"
+              class="transaction-icon"
+            />
+            <h3
+              style="
+                margin-top: 0;
+                margin-bottom: 12px;
+                font-size: 14px;
+                color: #dc3545;
+              "
+            >
+              Withdraw
+            </h3>
+            <input type="text" id="withdrawAmount" placeholder="Enter amount" />
+            <select id="expenseCategory" required>
+              <option value="">-- Select Category --</option>
+            </select>
+            <input
+              type="text"
+              id="withdrawDescription"
+              placeholder="e.g., Gate repair"
+            />
+            <button id="withdrawButton">Withdraw</button>
+          </div>
         </div>
         <div class="transactionsContainer">
           <h1>Transactions</h1>
