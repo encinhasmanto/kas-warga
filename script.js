@@ -116,7 +116,7 @@ function saveTransactionData() {
     (tx, idx, arr) =>
       !syncedTimes.has(tx.transaction_date) &&
       arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
-      !syncedTimes.has(tx.transaction_date) &&
+    !syncedTimes.has(tx.transaction_date) &&
       arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
   );
   uniqueToSync.forEach((transaction) => {
@@ -196,7 +196,6 @@ async function fetchTransactionsFromSupabase() {
   }));
 
   // Update syncedTimes to match all transaction times from Supabase
-  const allTimes = localTransaction.map((tx) => tx.transaction_date);
   const allTimes = localTransaction.map((tx) => tx.transaction_date);
   const uniqueTimes = Array.from(new Set(allTimes));
   syncedTimes.clear();
@@ -657,13 +656,10 @@ async function fetchUnitsFromSupabase() {
 function createRadioLabel(unit, radioName) {
   // Format: "R1 - Seblak Nasir" or "A1 - Reza"
   const value = `${unit.code} - ${unit.name}`;
-  const value = `${unit.code} - ${unit.name}`;
   const label = document.createElement("label");
   label.innerHTML = `
     <input type="radio" name="${radioName}" value="${value}" />
-    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>
-    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>
-  `;
+    <strong>${unit.code}</strong> -&nbsp;<strong>${unit.name}</strong>`;
   return label;
 }
 
@@ -1216,7 +1212,6 @@ async function fetchAndRenderPaymentTracker(category, year) {
 
   units.forEach((u) => {
     const status = byUnit.get(u.id) || Array(12).fill(false);
-    const name = `${u.code} - ${u.name}`;
     const name = `${u.code} - ${u.name}`;
     html += `<tr><td>${name}</td>`;
     for (let i = 0; i < months; i++) {
