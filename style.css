@@ -58,6 +58,10 @@ body {
   color: var(--label-text-color);
 }
 
+.transactionsContainer {
+  perspective: 1000px;
+}
+
 .paymentTypeBtnn {
   padding: 8px;
   margin: 12px 5px 12px 5px;
@@ -401,6 +405,23 @@ ul {
   transform: scale(1.1);
   opacity: 1;
 }
+/* Transaction Item Styling */
+.transaction-item {
+  /* display: block; */
+  /* width: 302px;
+  height: 55.500px; */
+  min-width: 302px;
+  min-height: 55.5px;
+  /* margin: 0 auto 0; */
+  /* object-fit: contain; */
+  /* opacity: 0.9; */
+  transition: transform 0.2s ease;
+}
+
+.transaction-item:hover {
+  transform: scale(1.05);
+  opacity: 1;
+}
 
 .transaction-section input {
   padding: 10px;
@@ -463,6 +484,155 @@ ul {
 
 .transaction-section button:active {
   background: #ffb347;
+}
+
+/* Pagination Container Styling */
+.transaction-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+/* Pagination Button Styling */
+.pagination-btn {
+  max-width: 80px;
+  padding: 8px 8px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+  will-change: transform;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.pagination-btn:active:not(:disabled) {
+  background: #3d8b40;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-weight: bold;
+  color: #333;
+  min-width: 120px;
+  text-align: center;
+  padding: 4px 8px;
+}
+
+/* Animation Classes for Pagination */
+.animate-flip-right {
+  /* animation: flip-2-ver-right-2 0.6s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards; */
+  animation: fadeInOut 0.5s ease-out forwards;
+}
+
+.animate-flip-left {
+  /* animation: flip-2-ver-left-2 0.6s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards; */
+  animation: fadeInOut 0.5s ease-out forwards;
+}
+
+.transaction-item-out {
+  animation: fadeOut 0.5s;
+}
+
+.transaction-item-in {
+  animation: fadeIn 0.5s;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Flip Right Animation */
+@keyframes flip-2-ver-right-2 {
+  0% {
+    transform: translateX(0) rotateY(0);
+    transform-origin: 50% 50%;
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(25%) rotateY(45deg);
+    transform-origin: 0% 0%;
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(50%) rotateY(90deg);
+    transform-origin: 0% 0%;
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(100%) rotateY(180deg);
+    transform-origin: 0% 0%;
+    opacity: 0;
+  }
+}
+
+/* Flip Left Animation */
+@keyframes flip-2-ver-left-2 {
+  0% {
+    transform: translateX(0) rotateY(0);
+    transform-origin: -50% -50%;
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(25%) rotateY(-45deg);
+    transform-origin: 0% 0%;
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(50%) rotateY(-90deg);
+    transform-origin: 0% 0%;
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(100%) rotateY(-180deg);
+    transform-origin: 0% 0%;
+    opacity: 0;
+  }
 }
 
 @media (max-width: 900px) {
@@ -590,6 +760,26 @@ ul {
     z-index: 3;
     background-color: var(--table-header);
   }
+}
+
+#PTTH {
+  display: inline-block;
+  align-items: center;
+  justify-content: center;
+  gap: 0px;
+}
+
+#logoPTTH {
+  width: 480px;
+  height: 150px;
+  object-fit: contain;
+}
+
+#textPTTH {
+  color: var(--label-text-color);
+  font-weight: 1000;
+  font-size: 2rem;
+  margin-top: 0px;
 }
 
 /* Jello Horizontal Animation */

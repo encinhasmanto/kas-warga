@@ -165,6 +165,7 @@ async function fetchExpenseCategoriesFromSupabase() {
 // Fetch categories when page loads
 document.addEventListener("DOMContentLoaded", () => {
   fetchExpenseCategoriesFromSupabase();
+  initializePaginationListeners();
 });
 
 // ---- FETCH TRANSACTIONS FROM SUPABASE ----
@@ -363,81 +364,30 @@ const updateUI = function () {
     list.appendChild(li);
   });
 
-  // Remove old pagination if it exists
-  const oldPagination = document.getElementById("transactionPagination");
-  if (oldPagination) {
-    oldPagination.remove();
-  }
+  // Update pagination controls using existing HTML elements
+  const paginationContainer = document.getElementById(
+    "transactionPaginationContainer",
+  );
+  const prevBtn = document.getElementById("paginationPrev");
+  const nextBtn = document.getElementById("paginationNext");
+  const pageInfoSpan = document.getElementById("pageInfo");
 
-  // Render pagination controls only if there are multiple pages
-  if (totalPages > 1) {
-    const paginationDiv = document.createElement("div");
-    paginationDiv.id = "transactionPagination";
-    paginationDiv.style.cssText = `
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-      margin-top: 16px;
-      margin-bottom: 8px;
-    `;
+  if (paginationContainer && prevBtn && nextBtn && pageInfoSpan) {
+    // Update page info
+    pageInfoSpan.textContent = `Page ${currentTransactionPage} of ${totalPages}`;
 
-    // Previous button
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "← Newer";
-    prevBtn.style.cssText = `
-      padding: 8px 12px;
-      background: #4caf50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      display: ${currentTransactionPage === 1 ? "none" : "block"};
-    `;
-    prevBtn.disabled = currentTransactionPage === 1;
-    prevBtn.addEventListener("click", () => {
-      if (currentTransactionPage > 1) {
-        currentTransactionPage--;
-        updateUI();
-      }
-    });
-    paginationDiv.appendChild(prevBtn);
+    // Update Previous (Newer) button visibility and state
+    const prevDisabled = currentTransactionPage === 1;
+    prevBtn.disabled = prevDisabled;
+    prevBtn.style.display = prevDisabled ? "none" : "block";
 
-    // Page indicator
-    const pageInfo = document.createElement("span");
-    pageInfo.textContent = `Page ${currentTransactionPage} of ${totalPages}`;
-    pageInfo.style.cssText = `
-      font-weight: bold;
-      color: #333;
-      min-width: 120px;
-      text-align: center;
-    `;
-    paginationDiv.appendChild(pageInfo);
+    // Update Next (Older) button visibility and state
+    const nextDisabled = currentTransactionPage === totalPages;
+    nextBtn.disabled = nextDisabled;
+    nextBtn.style.display = nextDisabled ? "none" : "block";
 
-    // Next button
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Older →";
-    nextBtn.style.cssText = `
-      padding: 8px 12px;
-      background: #4caf50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      display: ${currentTransactionPage === totalPages ? "none" : "block"};
-    `;
-    nextBtn.disabled = currentTransactionPage === totalPages;
-    nextBtn.addEventListener("click", () => {
-      if (currentTransactionPage < totalPages) {
-        currentTransactionPage++;
-        updateUI();
-      }
-    });
-    paginationDiv.appendChild(nextBtn);
-
-    list.parentElement.appendChild(paginationDiv);
+    // Show/hide pagination container if only 1 page
+    paginationContainer.style.display = totalPages > 1 ? "flex" : "none";
   }
 };
 
@@ -530,6 +480,67 @@ function deposit() {
   depositDescriptionInput.value = "";
   depositAmountInput.placeholder = "Enter amount";
   depositDescriptionInput.placeholder = "Enter description";
+}
+
+// ---- PAGINATION BUTTONS ----
+// Initialize pagination button event listeners
+function initializePaginationListeners() {
+  const prevBtn = document.getElementById("paginationPrev");
+  const nextBtn = document.getElementById("paginationNext");
+  // const transactionsContainer = document.querySelector(".transactionsContainer");
+  const transactionsHistoryContainer = document.getElementById(
+    "transactionsHistory",
+  );
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      if (currentTransactionPage > 1) {
+        // Animate the transactions container with flip-left
+        // if (transactionsContainer) {
+        //   transactionsContainer.classList.add("animate-flip-left");
+        // }
+        if (transactionsHistoryContainer) {
+          transactionsHistoryContainer.classList.add("animate-flip-left");
+        }
+        // Remove animation class after animation completes
+        //   setTimeout(() => {
+        //     transactionsContainer.classList.remove("animate-flip-left");
+        //   }, 600);
+        // }
+        setTimeout(() => {
+          transactionsHistoryContainer.classList.remove("animate-flip-left");
+        }, 600);
+      }
+      currentTransactionPage--;
+      updateUI();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      if (
+        currentTransactionPage <
+        Math.ceil(localTransaction.length / TRANSACTIONS_PER_PAGE)
+      ) {
+        // Animate the transactions container with flip-right
+        // if (transactionsContainer) {
+        //   transactionsContainer.classList.add("animate-flip-right");
+        if (transactionsHistoryContainer) {
+          transactionsHistoryContainer.classList.add("animate-flip-right");
+          // Remove animation class after animation completes
+          // setTimeout(() => {
+          //   transactionsContainer.classList.remove("animate-flip-right");
+          // }, 600);
+          setTimeout(() => {
+            transactionsHistoryContainer.classList.remove("animate-flip-right");
+          }, 600);
+        }
+
+        currentTransactionPage++;
+        updateUI();
+      }
+    });
+  }
 }
 
 // Show PopUp feedback message with color

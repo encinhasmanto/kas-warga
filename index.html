@@ -12,6 +12,11 @@
   </head>
   <body>
     <div id="PTTH">
+      <img
+        id="logoPTTH"
+        src="./icons/kas-warga-high-resolution-logo-transparent.png"
+        alt="Permata Tajur Town House"
+      />
       <h1 id="textPTTH">Permata Tajur Town House</h1>
     </div>
     <div id="mainFlexContainer">
@@ -193,6 +198,26 @@
         <div class="transactionsContainer">
           <h1>Transactions</h1>
           <ul id="transactionsHistory"></ul>
+          <div
+            id="transactionPaginationContainer"
+            class="transaction-pagination"
+          >
+            <button
+              id="paginationPrev"
+              class="pagination-btn pagination-prev"
+              style="display: none"
+            >
+              ← Newer
+            </button>
+            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+            <button
+              id="paginationNext"
+              class="pagination-btn pagination-next"
+              style="display: none"
+            >
+              Older →
+            </button>
+          </div>
         </div>
       </div>
     </div>
