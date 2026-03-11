@@ -11,7 +11,7 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Lexend", Arial, sans-serif;
   /* font-size: 16px; */
   display: flex;
   flex-direction: column;
@@ -22,15 +22,46 @@ body {
   background: var(--primary-bg);
 }
 
+/* #PTTH {
+  display: inline-block;
+  align-items: center;
+  justify-content: center;
+  gap: 0px;
+} */
+
+/* .lexend-bold {
+  font-family: "Lexend", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+} */
+
 #PTTH {
-  display: flex;
-  /* margin-bottom: 20px; */
+  display: flexbox;
   color: var(--label-text-color);
   font-weight: 1000;
   font-size: 2rem;
   align-items: center;
   justify-content: center;
   width: 100%;
+}
+
+#logoPTTH {
+  width: 480px;
+  height: 150px;
+  margin-right: 105px;
+  object-fit: contain;
+}
+
+#textPTTH {
+  color: var(--label-text-color);
+  font-weight: 1000;
+  font-size: 2rem;
+  margin-top: 0px;
+  text-shadow: 4px 4px 6px rgba(0, 0, 0, 0.1);
+  font:
+    700 2rem "Lexend",
+    sans-serif;
 }
 
 #mainFlexContainer {
@@ -760,26 +791,6 @@ ul {
     z-index: 3;
     background-color: var(--table-header);
   }
-}
-
-#PTTH {
-  display: inline-block;
-  align-items: center;
-  justify-content: center;
-  gap: 0px;
-}
-
-#logoPTTH {
-  width: 480px;
-  height: 150px;
-  object-fit: contain;
-}
-
-#textPTTH {
-  color: var(--label-text-color);
-  font-weight: 1000;
-  font-size: 2rem;
-  margin-top: 0px;
 }
 
 /* Jello Horizontal Animation */
