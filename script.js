@@ -116,8 +116,6 @@ function saveTransactionData() {
     (tx, idx, arr) =>
       !syncedTimes.has(tx.transaction_date) &&
       arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
-    !syncedTimes.has(tx.transaction_date) &&
-      arr.findIndex((t) => t.transaction_date === tx.transaction_date) === idx,
   );
   uniqueToSync.forEach((transaction) => {
     addTransactionToSupabase(transaction);
@@ -207,7 +205,11 @@ async function fetchTransactionsFromSupabase() {
   localTransaction.forEach((tx) => {
     if (tx.type === "deposit" || tx.type === "Deposit") {
       balance += tx.amount;
-    } else if (tx.type === "withdrawal" || tx.type === "Withdraw") {
+    } else if (
+      tx.type === "withdrawal" ||
+      tx.type === "Withdraw" ||
+      tx.type === "Withdrawal"
+    ) {
       balance += tx.amount; // amount is already negative
     }
   });
@@ -419,7 +421,7 @@ function withdraw() {
   if (!isNaN(amount) && amount > 0) {
     balance = parseInt(balance) - amount; // subtract amount from balance to withdraw (negative amount)
     const newTransaction = {
-      type: "withdrawal",
+      type: "Withdrawal",
       amount: -amount, // store as negative for clarity
       description: description,
       category_id: categoryId,
@@ -461,7 +463,7 @@ function deposit() {
     balance = parseInt(balance) + amount;
 
     const newTransaction = {
-      type: "deposit",
+      type: "Deposit",
       amount,
       description: description,
       transaction_date: new Date().toISOString(),
@@ -959,7 +961,7 @@ async function payIuranAndMarkMonths({
 }) {
   // 1) Insert a transaction record
   const tx = {
-    type: "deposit",
+    type: "Deposit",
     amount,
     description, // e.g., "R1 - Seblak Nasir"
     months_paid: monthsToMark,
