@@ -56,9 +56,8 @@ window.addEventListener("beforeunload", () => {
 // ---- BALANCE and TRANSACTIONS ----
 // ---- SETUP LOCAL STORAGE - BALANCE & TRANSACTIONS ----
 // DECLARE localStorage variables for balance and transactions
-let balance = localStorage.getItem("balance") || 0;
-let localTransaction =
-  JSON.parse(localStorage.getItem("localTransaction")) || [];
+let balance = 0;
+let localTransaction = [];
 
 // For tracking synced transactions by time
 const syncedTimes = new Set(

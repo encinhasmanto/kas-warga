@@ -29,11 +29,21 @@ self.addEventListener("activate", event => {
   );
 });
 
-// Fetch event (serve cached files when offline)
+// Fetch event (Network-First approach)
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request)
+      .then(response => {
+        // If network request is successful, clone and update cache
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        // If network fails (offline), fallback to cache
+        return caches.match(event.request);
+      })
   );
 });
