@@ -164,63 +164,64 @@ async function fetchExpenseCategoriesFromSupabase() {
 document.addEventListener("DOMContentLoaded", () => {
   fetchExpenseCategoriesFromSupabase();
   initializePaginationListeners();
+  fetchTransactionsFromSupabase();
 });
 
 // ---- FETCH TRANSACTIONS FROM SUPABASE ----
 async function fetchTransactionsFromSupabase() {
-  const { data, error } = await supabase
+    const { data, error } = await supabase
     .from("transactions")
     .select(
       `
       *,
       category:expense_categories(id, name)
-    `,
+      `,
     )
     .order("transaction_date", { ascending: true }); // Get most recent first
-
-  if (error) {
-    console.error("Error fetching data:", error);
-    return data;
-  }
-
-  // Update local transactions array
-  localTransaction = data.map((tx) => ({
-    type: tx.type,
-    amount: tx.amount,
-    description: tx.description,
-    category_id: tx.category_id,
-    category_name: tx.category?.name,
-    transaction_date: tx.transaction_date,
-  }));
-
-  // Update syncedTimes to match all transaction times from Supabase
-  const allTimes = localTransaction.map((tx) => tx.transaction_date);
-  const uniqueTimes = Array.from(new Set(allTimes));
-  syncedTimes.clear();
-  uniqueTimes.forEach((t) => syncedTimes.add(t));
-  localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes]));
-
-  // Update balance
-  balance = 0;
-  localTransaction.forEach((tx) => {
-    if (tx.type === "deposit" || tx.type === "Deposit") {
-      balance += tx.amount;
-    } else if (
-      tx.type === "withdrawal" ||
-      tx.type === "Withdraw" ||
-      tx.type === "Withdrawal"
-    ) {
-      balance += tx.amount; // amount is already negative
+    
+    if (error) {
+      console.error("Error fetching data:", error);
+      return data;
     }
-  });
-
-  // Save to localStorage
-  localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
-  localStorage.setItem("balance", balance);
-
-  // Reset pagination to page 1 when fetching new data
-  currentTransactionPage = 1;
-
+    
+    // Update local transactions array
+    localTransaction = data.map((tx) => ({
+      type: tx.type,
+      amount: tx.amount,
+      description: tx.description,
+      category_id: tx.category_id,
+      expenseCategory: tx.category ? tx.category.name : null,
+      transaction_date: tx.transaction_date,
+    }));
+    
+    // Update syncedTimes to match all transaction times from Supabase
+    const allTimes = localTransaction.map((tx) => tx.transaction_date);
+    const uniqueTimes = Array.from(new Set(allTimes));
+    syncedTimes.clear();
+    uniqueTimes.forEach((t) => syncedTimes.add(t));
+    localStorage.setItem("syncedTimes", JSON.stringify([...syncedTimes]));
+    
+    // Update balance
+    balance = 0;
+    localTransaction.forEach((tx) => {
+      if (tx.type === "deposit" || tx.type === "Deposit") {
+        balance += tx.amount;
+      } else if (
+        tx.type === "withdrawal" ||
+        tx.type === "Withdraw" ||
+        tx.type === "Withdrawal"
+      ) {
+        balance += tx.amount; // amount is already negative
+      }
+    });
+    
+    // Save to localStorage
+    localStorage.setItem("localTransaction", JSON.stringify(localTransaction));
+    localStorage.setItem("balance", balance);
+    
+    // Reset pagination to page 1 when fetching new data
+    currentTransactionPage = 1;
+    
   // Refresh UI
   updateUI();
 }
@@ -327,8 +328,8 @@ const updateUI = function () {
 
     // For withdrawals, add category name if available
     let categoryLabel = "";
-    if (!isDeposit && item.category_name) {
-      categoryLabel = `<strong>${item.category_name}</strong> - `;
+    if (!isDeposit && item.expenseCategory) {
+      categoryLabel = `<strong>${item.expenseCategory}</strong> - `;
     }
 
     li.innerHTML = `

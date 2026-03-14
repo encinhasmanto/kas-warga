@@ -76,7 +76,7 @@ body {
 }
 
 .balanceContainer,
-.iuranIPLContainer,
+.paymentContainer,
 /* #paymentTypeSelector, */
 .correctionContainer,
 .transactionsContainer {
@@ -672,7 +672,7 @@ ul {
     align-items: center;
   }
   .balanceContainer,
-  .iuranIPLContainer,
+  .paymentContainer,
   .correctionContainer,
   .transactionsContainer {
     max-width: 100%;
