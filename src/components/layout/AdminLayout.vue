@@ -20,7 +20,7 @@
           <router-link 
             v-for="item in section.items" 
             :key="item.name"
-            :to="item.path"
+            :to="{ name: item.name }"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group"
             :class="[
               $route.name === item.name 
@@ -72,6 +72,7 @@
           <div class="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 gap-2 border border-transparent focus-within:border-primary/30 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
             <span class="material-symbols-outlined text-slate-400 text-lg">search</span>
             <input 
+              v-model="searchQuery"
               type="text" 
               placeholder="Search records..." 
               class="bg-transparent border-none text-sm focus:ring-0 p-0 w-48 lg:w-64 placeholder:text-slate-400 text-slate-900 dark:text-slate-100"
@@ -80,10 +81,19 @@
         </div>
 
         <div class="flex items-center gap-2 md:gap-3">
-          <button class="relative w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
-            <span class="material-symbols-outlined">notifications</span>
-            <span class="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-          </button>
+          <div class="relative">
+            <button @click="showNotifications = !showNotifications" class="relative w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            </button>
+            <div v-if="showNotifications" class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-2 z-50">
+              <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-400">Recent Notifications</div>
+              <div class="p-8 text-center text-slate-400">
+                <span class="material-symbols-outlined text-4xl mb-2 opacity-20">notifications_off</span>
+                <p class="text-xs font-medium">No new notifications</p>
+              </div>
+            </div>
+          </div>
           
           <div class="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
           
@@ -100,7 +110,7 @@
       <main class="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-background-light dark:bg-background-dark">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" :key="$route.fullPath" />
           </transition>
         </router-view>
       </main>
@@ -109,11 +119,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { clearSession } from '@/services/supabaseClient.js'
 
 const router = useRouter()
 const route = useRoute()
+const showNotifications = ref(false)
+const searchQuery = ref('')
+
 const session = computed(() => JSON.parse(sessionStorage.getItem('dw_session') || '{}'))
 
 const AR_activeIcon = (name) => route.name === name ? "'FILL' 1" : "'FILL' 0"
@@ -125,30 +139,31 @@ const menuSections = computed(() => {
     {
       title: 'Main Menu',
       items: [
-        { name: 'dashboard', path: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-        { name: 'tracker', path: '/tracker', icon: 'payments', label: 'Payment Tracker' },
-        { name: 'history', path: '/history', icon: 'receipt_long', label: 'Transactions' },
-        { name: 'cms', path: '/cms', icon: 'campaign', label: 'Bulletin Board' }
+        { name: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+        { name: 'tracker', icon: 'payments', label: 'Payment Tracker' },
+        { name: 'history', icon: 'receipt_long', label: 'Transactions' },
+        { name: 'cms', icon: 'campaign', label: 'Bulletin Board' }
       ]
     },
     {
       title: 'Operations',
-      items: isSuperAdmin ? [
-        { name: 'transactions', path: '/transactions', icon: 'swap_horiz', label: 'Input Transaction' },
-        { name: 'correction', path: '/correction', icon: 'build', label: 'Correction' }
+      items: (session.value?.role === 'Super Admin') ? [
+        { name: 'transactions', icon: 'swap_horiz', label: 'Input Transaction' },
+        { name: 'correction', icon: 'build', label: 'Correction' }
       ] : []
     },
     {
       title: 'System',
       items: [
-        { name: 'settings', path: '/settings', icon: 'settings', label: 'System Settings' }
+        { name: 'settings', icon: 'settings', label: 'System Settings' },
+        ...(isSuperAdmin ? [{ name: 'special-events', icon: 'auto_mode', label: 'Special Events' }] : [])
       ]
     }
   ].filter(section => section.items.length > 0) // Hide empty Operations section for Admins
 })
 
 function handleLogout() {
-  sessionStorage.removeItem('dw_session')
+  clearSession()
   router.push({ name: 'login' })
 }
 </script>

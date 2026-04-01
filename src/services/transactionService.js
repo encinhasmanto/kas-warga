@@ -14,44 +14,153 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
  *   - transaction_date: date (ISO string)
  * @returns {Promise<Object>} { success: boolean, data: transaction, error: string }
  */
+// OLD ONE
+// export async function recordDeposit(depositData) {
+//   try {
+//     const session = getCurrentSession();
+//     if (session.type !== "admin") {
+//       return {
+//         success: false,
+//         error: "Only admins can record transactions",
+//       };
+//     }
+
+//     let catId = depositData.category_id;
+//     if (catId === "correction") {
+//       // Pass 'deposit' so it creates an Income category!
+//       catId = await getOrCreateCorrectionCategory("deposit");
+//     }
+
+//     const newTransaction = {
+//       type: "deposit",
+//       transaction_type: "deposit", // Required for trigger
+//       amount: depositData.amount,
+//       category_id: catId,
+//       // description: depositData.description || "",
+//       description: depositData.description.replace(/\[.*?\]\s*/g, '').trim(),
+//       transaction_date:
+//         depositData.transaction_date || new Date().toISOString(),
+//       // recorded_by: session.id,
+//     };
+
+//     // Update payment_obligations status to paid if unit_id and month_index are provided
+//     if (depositData.unit_id && depositData.month_index) {
+//       await supabase
+//         .from('payment_obligations')
+//         .update({ 
+//           status: 'paid', // Mark as paid
+//           updated_at: new Date().toISOString() 
+//     })
+//     .eq('unit_id', depositData.unit_id)
+//     .eq('month_index', depositData.month_index)
+//     .eq('year', new Date().getFullYear()); // Match current year
+// }
+
+//     const { data, error } = await supabase
+//       .from("transactions")
+//       .insert([newTransaction])
+//       .select();
+
+//     if (error) {
+//       return {
+//         success: false,
+//         error: error.message,
+//       };
+//     }
+
+//     console.log("✅ Deposit recorded:", depositData.amount);
+//     return {
+//       success: true,
+//       data: data[0],
+//     };
+//   } catch (err) {
+//     console.error("❌ Error recording deposit:", err);
+//     return {
+//       success: false,
+//       error: err.message,
+//     };
+//   }
+// }
+
+// OLD NEW ONE
+// export async function recordDeposit(depositData) {
+//   try {
+//     const session = getCurrentSession();
+    
+//     let catId = depositData.category_id;
+//     if (catId === "correction") {
+//       catId = await getOrCreateCorrectionCategory("deposit");
+//     }
+
+//     // 1. Create the Transaction
+//     const newTransaction = {
+//       type: "deposit",
+//       transaction_type: "deposit",
+//       amount: depositData.amount,
+//       category_id: catId,
+//       description: depositData.description || "",
+//       transaction_date: depositData.transaction_date || new Date().toISOString(),
+//       unit_id: depositData.unit_id // Ensure this is being passed
+//     };
+
+//     const { data: txData, error: txError } = await supabase
+//       .from("transactions")
+//       .insert([newTransaction])
+//       .select()
+//       .single();
+
+//     if (txError) throw txError;
+
+//     // 2. MVP CRITICAL: If this is a monthly payment, update the tracker!
+//     if (depositData.unit_id && depositData.month_index) {
+//       await supabase
+//         .from('payment_obligations')
+//         .update({ status: 'paid' })
+//         .eq('unit_id', depositData.unit_id)
+//         .eq('month_index', depositData.month_index)
+//         .eq('year', 2026)
+//         .eq('event_id', 2); // 2 is the ID for IPL
+//     }
+
+//     return { success: true, data: txData };
+//   } catch (err) {
+//     console.error("❌ Error recording deposit:", err);
+//     return { success: false, error: err.message };
+//   }
+// }
+// NEW ONE
 export async function recordDeposit(depositData) {
   try {
     const session = getCurrentSession();
-
-    if (session.type !== "admin") {
-      return {
-        success: false,
-        error: "Only admins can record deposits",
-      };
+    if (!session.isSuperAdmin) {
+      return { success: false, error: "Only Super Admins can record deposits" };
     }
 
-    const newTransaction = {
-      type: "deposit",
-      amount: depositData.amount,
-      category_id: depositData.category_id,
-      description: depositData.description || "",
-      transaction_date:
-        depositData.transaction_date || new Date().toISOString(),
-      recorded_by: session.id,
-      created_at: new Date().toISOString(),
-    };
+    let catId = depositData.category_id;
+    if (catId === "correction") {
+      catId = await getOrCreateCorrectionCategory("deposit");
+    }
 
-    const { data, error } = await supabase
+    // 1. Create the Transaction Record
+    const { data: tx, error: txErr } = await supabase
       .from("transactions")
-      .insert([newTransaction])
-      .select();
+      .insert([{
+        type: "deposit",
+        transaction_type: "deposit",
+        amount: depositData.amount,
+        category_id: catId,
+        description: depositData.description || "",
+        transaction_date: new Date().toISOString()
+      }])
+      .select().single();
 
-    if (error) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
+    if (txErr) throw txErr;
 
+    // Success
     console.log("✅ Deposit recorded:", depositData.amount);
     return {
       success: true,
-      data: data[0],
+      data: tx,
     };
   } catch (err) {
     console.error("❌ Error recording deposit:", err);
@@ -66,7 +175,7 @@ export async function recordDeposit(depositData) {
  * Record a withdrawal (kas keluar - pengeluaran)
  * @param {Object} withdrawalData
  *   - amount: withdrawal amount
- *   - category_id: expense category ID (required for tracking expenses)
+ *   - category_id: expense category ID (required for tracking expenses, can be 'correction')
  *   - description: description of withdrawal
  *   - transaction_date: date (ISO string)
  *   - recipient: who received the money
@@ -75,12 +184,8 @@ export async function recordDeposit(depositData) {
 export async function recordWithdrawal(withdrawalData) {
   try {
     const session = getCurrentSession();
-
-    if (session.type !== "admin") {
-      return {
-        success: false,
-        error: "Only admins can record withdrawals",
-      };
+    if (!session.isSuperAdmin) {
+      return { success: false, error: "Only Super Admins can record withdrawals" };
     }
 
     if (!withdrawalData.category_id) {
@@ -90,16 +195,20 @@ export async function recordWithdrawal(withdrawalData) {
       };
     }
 
+    let catId = withdrawalData.category_id;
+    if (catId === "correction") {
+      // Pass 'withdrawal' so it creates an Expense category!
+      catId = await getOrCreateCorrectionCategory("withdrawal");
+    }
+
     const newTransaction = {
       type: "withdrawal",
+      transaction_type: "withdrawal", // Required for trigger
       amount: -Math.abs(withdrawalData.amount), // Store as negative
-      category_id: withdrawalData.category_id,
+      category_id: catId,
+      // description: withdrawalData.description.replace(/\[.*?\]\s*/g, '').trim(),
       description: withdrawalData.description || "",
-      recipient: withdrawalData.recipient,
-      transaction_date:
-        withdrawalData.transaction_date || new Date().toISOString(),
-      recorded_by: session.id,
-      created_at: new Date().toISOString(),
+      transaction_date: withdrawalData.transaction_date || new Date().toISOString(),
     };
 
     const { data, error } = await supabase
@@ -177,10 +286,11 @@ export async function getTransactions(filters = {}) {
       .select(
         `
         *,
-        category:expense_categories(id, name, description)
+        category:transaction_categories(id, name, description)
       `,
       )
-      .order("transaction_date", { ascending: false });
+      .order("transaction_date", { ascending: false })
+      .limit(100); // Added default limit
 
     if (filters.type) {
       query = query.eq("type", filters.type);
@@ -280,7 +390,7 @@ export async function getExpenseSummaryByCategory(filters = {}) {
         `
         amount,
         type,
-        category:expense_categories(id, name)
+        category:transaction_categories(id, name)
       `,
       )
       .eq("type", "withdrawal");
@@ -325,7 +435,7 @@ export async function getExpenseSummaryByCategory(filters = {}) {
 }
 /**
  * Get monthly performance summary for a specific year
- * @param {number} year 
+ * @param {number} year
  * @returns {Promise<Object>} { success, data: Array of { month, income, expense } }
  */
 export async function getMonthlyPerformance(year) {
@@ -360,5 +470,84 @@ export async function getMonthlyPerformance(year) {
   } catch (err) {
     console.error("❌ Error getting monthly performance:", err);
     return { success: false, error: err.message };
+  }
+}
+
+// OLD ONE
+// /**
+//  * Get or create the 'Correction' category
+//  * @returns {Promise<string|null>} Category ID
+//  */
+// async function getOrCreateCorrectionCategory() {
+//   try {
+//     const { data: existing } = await supabase
+//       .from("transaction_categories")
+//       .select("id")
+//       .eq("name", "Correction")
+//       .maybeSingle();
+
+//     if (existing) return existing.id;
+
+//     const { data: created, error } = await supabase
+//       .from("transaction_categories")
+//       .insert([
+//         {
+//           name: "Correction",
+//           description: "Financial adjustments and corrections",
+//           category_type: "expense",
+//           is_active: true,
+//           created_at: new Date().toISOString(),
+//         },
+//       ])
+//       .select()
+//       .single();
+
+//     if (error) throw error;
+//     return created?.id || null;
+//   } catch (err) {
+//     console.error("❌ Error ensuring Correction category:", err);
+//     return null;
+//   }
+// }
+
+// NEW ONE
+/**
+ * Get or create a 'Correction' category dynamically based on transaction type
+ * @param {string} type - 'deposit' or 'withdrawal'
+ * @returns {Promise<string|null>} Category ID
+ */
+async function getOrCreateCorrectionCategory(type = 'expense') {
+  // 1. Determine the right name and DB type
+  const categoryName = type === 'deposit' ? 'Income Correction' : 'Expense Correction';
+  const categoryType = type === 'deposit' ? 'income' : 'expense';
+
+  try {
+    // 2. Check if this specific correction category exists
+    const { data: existing } = await supabase
+      .from("transaction_categories")
+      .select("id")
+      .eq("name", categoryName)
+      .maybeSingle();
+
+    if (existing) return existing.id;
+
+    // 3. Create it if it doesn't exist!
+    const { data: created, error } = await supabase
+      .from("transaction_categories")
+      .insert([{
+        name: categoryName,
+        description: `Financial adjustments for ${categoryType}`,
+        category_type: categoryType, // Now it's dynamic!
+        is_active: true,
+        created_at: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return created.id;
+  } catch (err) {
+    console.error("❌ Error creating correction category:", err);
+    return null;
   }
 }

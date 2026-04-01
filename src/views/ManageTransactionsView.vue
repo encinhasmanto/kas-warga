@@ -76,30 +76,29 @@
                 <label class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">CATEGORY</label>
                 <div class="grid grid-cols-3 gap-2">
                   <button 
-                    v-for="cat in ['IPL', 'THR', 'Iuran Lainnya']" 
-                    :key="cat"
+                    v-for="cat in sortedIncomeCategories" 
+                    :key="cat.id"
                     @click="setIncomeCategory(cat)"
                     :class="[
                       'py-3 px-1 sm:px-2 rounded-xl text-[10px] sm:text-xs text-center border transition-all font-bold',
-                      incomeData.category === cat 
+                      incomeData.categoryId === cat.id 
                         ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/20' 
                         : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-emerald-300'
                     ]"
                   >
-                    {{ cat }}
+                    {{ cat.name }}
                   </button>
                 </div>
               </div>
 
               <!-- Iuran Lainnya: Project Name -->
-              <div v-if="incomeData.category === 'Iuran Lainnya'" class="space-y-3 animate-fade-in">
+              <div v-if="incomeData.categoryName === 'Iuran Lainnya'" class="space-y-3 animate-fade-in">
                 <label class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">Project Name</label>
                 <input 
                   v-model="incomeData.projectName"
                   class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-300" 
-                  placeholder="e.g. Dana Agustusan" 
-                  type="text"
-                />
+                  placeholder="e.g. Perbaikan Tembok" 
+                >
               </div>
 
               <!-- Type Selection -->
@@ -145,6 +144,18 @@
                   </button>
                 </div>
               </div>
+              <!-- <div v-if="incomeData.categoryId" class="space-y-2 mt-4 animate-fade-in">
+  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Target Month (For Tracker)</label>
+  <select 
+    v-model="incomeData.month_index"
+    class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl py-4 px-5 focus:ring-2 focus:ring-primary/20 font-medium transition-all appearance-none cursor-pointer"
+  >
+    <option v-for="(month, index) in ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']" 
+            :key="index" :value="index + 1">
+      {{ month }} 2026
+    </option>
+                    </select>
+</div> -->
             </div>
 
             <!-- Amount Input -->
@@ -196,13 +207,11 @@
               <div class="space-y-3">
                 <label class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">CATEGORY</label>
                 <div class="relative">
-                  <select v-model="expenseData.category" class="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 rounded-xl py-3.5 pl-4 pr-10 text-sm font-bold transition-all text-slate-900 dark:text-slate-100 cursor-pointer">
+                  <select v-model="expenseData.categoryId" class="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 rounded-xl py-3.5 pl-4 pr-10 text-sm font-bold transition-all text-slate-900 dark:text-slate-100 cursor-pointer">
                     <option value="" disabled>Select category...</option>
-                    <option>Payroll & Benefits</option>
-                    <option>Maintenance & Repairs</option>
-                    <option>Outside Services</option>
-                    <option>Utilities</option>
-                    <option>Office Supplies</option>
+                    <option v-for="cat in expenseCategories" :key="cat.id" :value="cat.id">
+                      {{ cat.name }}
+                    </option>
                   </select>
                   <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
                     <span class="material-symbols-outlined text-lg">expand_more</span>
@@ -262,8 +271,15 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '@/services/supabaseClient.js'
+import { getTransactionCategories } from '@/services/expenseService.js'
 import { recordDeposit, recordWithdrawal } from '@/services/transactionService.js'
 import { recordPayment } from '@/services/paymentService.js'
+
+const availableYears = ref([
+  new Date().getFullYear() - 1,
+  new Date().getFullYear(),
+  new Date().getFullYear() + 1
+])
 
 const route = useRoute()
 const router = useRouter()
@@ -283,10 +299,27 @@ function showToast(message, type = 'success') {
   }, 2500)
 }
 
-onMounted(() => {
+const incomeCategories = ref([])
+const expenseCategories = ref([])
+
+const sortedIncomeCategories = computed(() => {
+  const order = ['IPL', 'THR', 'Iuran Lainnya']
+  return [...incomeCategories.value].sort((a, b) => {
+    return order.indexOf(a.name) - order.indexOf(b.name)
+  })
+})
+
+onMounted(async () => {
   if (['transactions', 'correction'].includes(route.name)) {
     activeView.value = route.name
   }
+
+  // Fetch Categories
+  const incRes = await getTransactionCategories('income')
+  if (incRes.success) incomeCategories.value = incRes.data
+
+  const expRes = await getTransactionCategories('expense')
+  if (expRes.success) expenseCategories.value = expRes.data
 })
 
 // Ensures that changing the activeView manually updates the URL 
@@ -311,7 +344,9 @@ const goBack = () => {
 // ========================
 
 const incomeData = ref({
-  category: '',
+  categoryId: '',
+  categoryName: '',
+  categoryCode: '',
   type: '',
   unit: '',
   amount: '',
@@ -319,19 +354,39 @@ const incomeData = ref({
   notes: ''
 })
 
+// OLD ONE
+// function resetIncome() {
+//   incomeData.value = {
+//     categoryId: '',
+//     categoryName: '',
+//     categoryCode: '',
+//     type: '',
+//     unit: '',
+//     amount: '',
+//     projectName: '',
+//     notes: ''
+//   }
+// }
+// NEW ONE
 function resetIncome() {
   incomeData.value = {
-    category: '',
+    amount: '',
+    categoryId: '',
+    categoryName: '',
+    categoryCode: '',
     type: '',
     unit: '',
-    amount: '',
+    notes: '',
     projectName: '',
-    notes: ''
+    month_index: new Date().getMonth() + 1, // Reset to current month
+    year: new Date().getFullYear() // Reset year logically
   }
 }
 
 function setIncomeCategory(cat) {
-  incomeData.value.category = cat
+  incomeData.value.categoryId = cat.id
+  incomeData.value.categoryName = cat.name
+  incomeData.value.categoryCode = cat.code
   incomeData.value.amount = ''
   incomeData.value.projectName = ''
   applyIncomeAutofill()
@@ -344,18 +399,18 @@ function setIncomeType(type) {
 }
 
 function applyIncomeAutofill() {
-  const cat = incomeData.value.category
+  const code = incomeData.value.categoryCode
   const type = incomeData.value.type
 
-  if (!cat || !type) return
+  if (!code || !type) return
 
-  if (cat === 'IPL' || cat === 'THR') {
+  if (code === 'IPL' || code === 'THR') {
     if (type === 'Ruko') {
       incomeData.value.amount = '250000'
     } else if (type === 'Townhouse') {
       incomeData.value.amount = '170000'
     }
-  } else if (cat === 'Iuran Lainnya') {
+  } else if (code === 'IURAN_LAINNYA') {
     incomeData.value.amount = ''
   }
 }
@@ -387,54 +442,72 @@ async function saveIncome() {
   const { category, type, unit, amount, projectName, notes } = incomeData.value
   
   // Validation with Custom Toast
-  if (!category) return showToast("Please select a Category.", "error")
-  if (category === 'Iuran Lainnya' && !projectName.trim()) return showToast("Please enter the Project Name.", "error")
-  if (!type) return showToast("Please select the Payor Type.", "error")
-  if (!unit) return showToast("Please select a Unit.", "error")
-  if (!amount || parseInt(amount) === 0) return showToast("Please enter a valid Amount.", "error")
+    if (!incomeData.value.categoryId) return showToast("Please select a Category.", "error")
+    if (incomeData.value.categoryCode === 'IURAN_LAINNYA' && !projectName.trim()) return showToast("Please enter the Project Name.", "error")
+    if (!type) return showToast("Please select the Payor Type.", "error")
+    if (!unit) return showToast("Please select a Unit.", "error")
+    if (!amount || parseInt(amount) === 0) return showToast("Please enter a valid Amount.", "error")
 
-  isSaving.value = true
-  const parsedAmount = parseInt(amount)
+    isSaving.value = true
+    const parsedAmount = parseInt(amount)
 
-  try {
-    // 1. Resolve the unit ID from the code
-    const { data: unitRecord } = await supabase.from('units').select('id').eq('code', unit).single()
-    if (!unitRecord) throw new Error("Unit code not found in database.")
+    try {
+      // 1. Resolve the unit ID from the code
+      const { data: unitRecord } = await supabase.from('units').select('id').eq('code', unit).single()
+      if (!unitRecord) throw new Error("Unit code not found in database.")
 
-    // 2. If IPL/THR, tie it to an obligation to update tracking matrix
-    if (category === 'IPL' || category === 'THR') {
-      const { data: obligations } = await supabase
-        .from('payment_obligations')
-        .select('id, amount, status, event:payment_events(event_type, year, month)')
-        .eq('unit_id', unitRecord.id)
-        .eq('status', 'pending')
+      // 2. If IPL/THR, tie it to an obligation to update tracking matrix
+      const code = incomeData.value.categoryCode
+      if (code === 'IPL' || code === 'THR') {
+        const lowerCat = code.toLowerCase()
+        const { data: obligations } = await supabase
+          .from('payment_obligations')
+          .select('id, amount, status, year, month_index, event:payment_events(key)')
+          .eq('unit_id', unitRecord.id)
 
-      const matchingObs = obligations?.filter(o => o.event?.event_type === category)
-      
-      // Target oldest pending obligation
-      matchingObs?.sort((a,b) => {
-        if(a.event.year !== b.event.year) return a.event.year - b.event.year
-        return a.event.month - b.event.month
-      })
+        const currentYear = new Date().getFullYear()
 
-      if (matchingObs && matchingObs.length > 0) {
-         await recordPayment({
-           obligation_id: matchingObs[0].id,
-           amount: parsedAmount,
-           payment_method: 'transfer', // default assumption
-           notes: notes
-         })
+        // 2a. Pre-Validation: Prevent Duplicate THR Payments for current year
+        if (code === 'THR') {
+          const matchingThr = obligations?.find(o => o.event?.key === 'thr' && o.year === currentYear)
+          if (matchingThr && matchingThr.status === true) {
+             throw new Error(`This unit has already paid THR for ${currentYear}!`)
+          }
+        }
+
+        const matchingObs = obligations?.filter(o => o.event?.key === lowerCat && o.status === false)
+        
+        // Target oldest pending obligation
+        matchingObs?.sort((a,b) => {
+          if(a.year !== b.year) return a.year - b.year
+          return (a.month_index || 0) - (b.month_index || 0)
+        })
+
+        if (!matchingObs || matchingObs.length === 0) {
+           throw new Error(`All ${code} Tracking Obligations are already fully paid!`)
+        }
+
+        // Proceed to update the oldest unpaid matrix cell
+        const rpRes = await recordPayment({
+          obligation_id: matchingObs[0].id,
+          amount: parsedAmount,
+          payment_method: 'transfer', 
+          notes: notes
+        })
+        if (!rpRes.success) throw new Error(rpRes.error)
       }
-    }
 
-    // 3. ALWAYS Record Deposit into Kas
-    let desc = `${category} Payment - Unit ${unit}`
-    if (category === 'Iuran Lainnya') desc = `Iuran Lainnya - ${projectName} - Unit ${unit}`
-    
-    await recordDeposit({
-      amount: parsedAmount,
-      description: desc + (notes ? ` - ${notes}` : '')
-    })
+      // 3. ALWAYS Record Deposit into Kas
+      let desc = `${incomeData.value.categoryName} Payment - Unit ${unit}`
+      if (code === 'IURAN_LAINNYA') desc = `Iuran Lainnya - ${projectName} - Unit ${unit}`
+      
+      const res = await recordDeposit({
+        amount: parsedAmount,
+        category_id: incomeData.value.categoryId,
+        description: desc + (notes ? ` - ${notes}` : ''),
+        unit_id: unitRecord.id
+      })
+      if (!res.success) throw new Error(res.error)
 
     // Success
     showToast(`Income for Unit ${unit} saved successfully!`, 'success')
@@ -451,14 +524,14 @@ async function saveIncome() {
 // ========================
 
 const expenseData = ref({
-  category: '',
+  categoryId: '',
   amount: '',
   notes: ''
 })
 
 function resetExpense() {
   expenseData.value = {
-    category: '',
+    categoryId: '',
     amount: '',
     notes: ''
   }
@@ -474,29 +547,20 @@ const formattedExpenseAmount = computed({
 async function saveExpense() {
   if (isSaving.value) return
   // Validation with Custom Toast
-  if (!expenseData.value.category) return showToast("Please select an Expense Category.", 'error')
+  if (!expenseData.value.categoryId) return showToast("Please select an Expense Category.", 'error')
   if (!expenseData.value.amount || parseInt(expenseData.value.amount) === 0) return showToast("Please enter a valid Amount.", 'error')
 
   isSaving.value = true
   const parsedAmount = parseInt(expenseData.value.amount)
 
   try {
-    let { data: catRecord } = await supabase.from('expense_categories').select('id').eq('name', expenseData.value.category).single()
-    let categoryId = null
-    
-    if (catRecord) {
-      categoryId = catRecord.id
-    } else {
-      const { data: newCat } = await supabase.from('expense_categories').insert([{ name: expenseData.value.category, description: 'Dynamically generated' }]).select().single()
-      if (newCat) categoryId = newCat.id
-    }
-
-    await recordWithdrawal({
+    const res = await recordWithdrawal({
       amount: parsedAmount,
-      category_id: categoryId,
-      description: expenseData.value.notes || `General ${expenseData.value.category}`,
+      category_id: expenseData.value.categoryId,
+      description: expenseData.value.notes || `General Expense`,
       recipient: 'Vendor / Operations'
     })
+    if (!res.success) throw new Error(res.error)
 
     // Success
     showToast(`Expense saved successfully!`, 'expense-success')

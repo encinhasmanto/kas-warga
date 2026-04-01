@@ -2,8 +2,13 @@
   <div class="tracker-view p-4 md:p-8">
     <div class="flex items-end justify-between mb-6">
       <div>
-        <h3 class="text-2xl font-black tracking-tight">Payment Tracker</h3>
-        <p class="text-slate-500 text-sm">Detailed status of Monthly IPL & Special Fees</p>
+        <div class="flex items-center gap-3">
+          <h3 class="text-2xl font-black tracking-tight">Payment Tracker</h3>
+          <select v-model="currentYear" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer hover:border-primary/30">
+            <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
+          </select>
+        </div>
+        <p class="text-slate-500 text-sm mt-1">Detailed status of Monthly IPL & Special Fees</p>
       </div>
       <div class="flex gap-2">
         <button class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-primary/10 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -24,7 +29,10 @@
             <tr class="bg-slate-50 dark:bg-slate-800/50">
               <th class="p-4 font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-50 dark:bg-slate-800 border-r border-primary/10 z-10 w-24">Unit</th>
               <th class="p-4 font-bold text-slate-400 uppercase tracking-wider min-w-[150px]">Owner</th>
-              <th v-for="m in ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']" :key="m" class="p-4 font-bold text-slate-400 uppercase tracking-wider text-center w-16">
+              <th v-for="(m, index) in ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']" :key="m" :class="[
+                'p-4 font-bold uppercase tracking-wider text-center w-16 transition-colors',
+                isCurrentMonth(index) ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+              ]">
                 {{ m }}
               </th>
               <th class="p-4 font-bold text-primary uppercase tracking-wider text-center bg-primary/5 w-16">THR</th>
@@ -44,7 +52,10 @@
             <tr v-else v-for="row in trackerData" :key="row.unit" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
               <td class="p-4 font-bold text-primary sticky left-0 bg-white dark:bg-slate-900 border-r border-primary/10">{{ row.unit }}</td>
               <td class="p-4 whitespace-nowrap font-medium">{{ row.owner }}</td>
-              <td v-for="(status, index) in row.months" :key="index" class="p-4 text-center">
+              <td v-for="(status, index) in row.months" :key="index" :class="[
+                'p-4 text-center transition-colors',
+                isCurrentMonth(index) ? 'bg-emerald-500/5' : ''
+              ]">
                 <span class="material-symbols-outlined" :class="getStatusIcon(status).class">{{ getStatusIcon(status).icon }}</span>
               </td>
               <td class="p-4 text-center bg-primary/5">
@@ -57,83 +68,226 @@
       
       <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-primary/10 flex flex-wrap items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
         <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span> Paid</div>
-        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-amber-500">warning</span> Pending</div>
-        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-rose-500">close</span> Late</div>
-        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-slate-300 dark:text-slate-700">radio_button_unchecked</span> Upcoming / N/A</div>
+        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-amber-500">warning</span> Late</div>
+        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-rose-500">close</span> Unpaid</div>
+        <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-slate-300 dark:text-slate-700">radio_button_unchecked</span> Upcoming</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { supabase } from '@/services/supabaseClient.js'
 
-const { isResident, isAdmin, session, displayName, unitCode } = useAuth()
+const { isResident, isAdmin, session, displayName, unitCode, unitId } = useAuth()
 
 const currentYear = ref(new Date().getFullYear())
+const availableYears = ref([
+  new Date().getFullYear() - 1,
+  new Date().getFullYear(),
+  new Date().getFullYear() + 1
+])
+
+// Dynamic helper for UI column highlighting
+function isCurrentMonth(index) {
+  const isCurrentYear = currentYear.value === new Date().getFullYear();
+  const isCurrentMonth = index === new Date().getMonth();
+  return isCurrentYear && isCurrentMonth;
+}
+
 const trackerData = ref([])
 const isLoading = ref(true)
 
-onMounted(async () => {
+// OLD ONE
+// onMounted(async () => {
+//   isLoading.value = true
+  
+//   if (isAdmin.value) {
+//     // 1. Fetch all active units
+//     const { data: units } = await supabase.from('units').select('id, code, name, no_sequence_unit').order('no_sequence_unit')
+    
+//     const { data: obligations } = await supabase
+//       .from('payment_obligations')
+//       .select('id, status, unit_id, month_index, year, event:payment_events(key)')
+      
+//     const yearObs = obligations?.filter(o => o.year === currentYear.value) || []
+    
+//     // 3. Build the global matrix
+//     trackerData.value = (units || []).map(u => {
+//       const uObs = yearObs.filter(o => o.unit_id === u.id)
+      
+//       return {
+//         unit: u.code,
+//         owner: u.name,
+//         months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+//           const mOb = uObs.find(o => o.event?.key === 'ipl' && o.month_index === m)
+//           // Default to upcoming if obligation hasn't been instantiated yet
+//           return mOb ? mOb.status : 'upcoming'
+//         }),
+//         thr: (uObs.find(o => o.event?.key === 'thr') || {}).status || 'upcoming'
+//       }
+//     })
+//   } else if (isResident.value && (session.value?.unit_id || session.value?.id)) {
+//     const uId = session.value?.unit_id || session.value?.id
+//     // Fetch only the resident's obligations
+//     const { data: obligations } = await supabase
+//       .from('payment_obligations')
+//       .select('id, status, month_index, year, event:payment_events(key)')
+//       .eq('unit_id', uId)
+      
+//     const yearObs = obligations?.filter(o => o.year === currentYear.value) || []
+    
+//     trackerData.value = [{
+//       unit: unitCode.value,
+//       owner: displayName.value,
+//       months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+//         const mOb = yearObs.find(o => o.event?.key === 'ipl' && o.month_index === m)
+//         return mOb ? mOb.status : 'upcoming'
+//       }),
+//       thr: (yearObs.find(o => o.event?.key === 'thr') || {}).status || 'upcoming'
+//     }]
+//   }
+  
+//   isLoading.value = false
+// })
+
+// function getStatusIcon(status) {
+//    switch(status) {
+//       case 'paid': return { icon: 'check_circle', class: 'text-emerald-500' }
+//       case 'pending': return { icon: 'warning', class: 'text-amber-500' }
+//       case 'late': return { icon: 'close', class: 'text-rose-500' }
+//       default: return { icon: 'radio_button_unchecked', class: 'text-slate-300 dark:text-slate-700' }
+//    }
+// }
+
+// Replace your existing onMounted and getStatusIcon with this:
+
+function getUnpaidMark(obYear, obMonth) {
+  const today = new Date();
+  const currentY = today.getFullYear();
+  const currentM = today.getMonth() + 1;
+  if (obYear > currentY || (obYear === currentY && obMonth >= currentM)) return 'upcoming';
+  const monthsDiff = (currentY * 12 + currentM) - (obYear * 12 + obMonth);
+  if (monthsDiff < 2 && monthsDiff > 0) return 'late';
+  return 'unpaid';
+}
+
+function getThrMark(obYear) {
+  const currentY = new Date().getFullYear();
+  if (obYear > currentY) return 'upcoming';
+  if (obYear === currentY) return 'late';
+  return 'unpaid';
+}
+
+// NEW ONE
+const fetchTrackerData = async () => {
   isLoading.value = true
   
-  if (isAdmin.value) {
-    // 1. Fetch all active units
-    const { data: units } = await supabase.from('units').select('id, code, display_name').order('code')
-    
-    // 2. Fetch obligations
-    const { data: obligations } = await supabase
-      .from('payment_obligations')
-      .select('id, status, unit_id, event:payment_events(event_type, month, year)')
+  try {
+    if (isAdmin.value) {
+      // 1. Fetch units
+      const { data: units, error: unitErr } = await supabase
+        .from('units')
+        .select('id, code, name, no_sequence_unit')
+        .order('no_sequence_unit')
       
-    const yearObs = obligations?.filter(o => o.event?.year === currentYear.value) || []
-    
-    // 3. Build the global matrix
-    trackerData.value = (units || []).map(u => {
-      const uObs = yearObs.filter(o => o.unit_id === u.id)
+      if (unitErr) throw unitErr
+
+      // 2. Fetch obligations
+      const { data: obligations, error: obErr } = await supabase
+        .from('payment_obligations')
+        .select('id, status, unit_id, month_index, year, event_id, event:payment_events(key)')
+        .eq('year', currentYear.value) // Filter in DB, not JS for better performance
       
-      return {
-        unit: u.code,
-        owner: u.display_name,
-        months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-          const mOb = uObs.find(o => o.event?.event_type === 'IPL' && o.event?.month === m)
-          // Default to upcoming if obligation hasn't been instantiated yet
-          return mOb ? mOb.status : 'upcoming'
-        }),
-        thr: (uObs.find(o => o.event?.event_type === 'THR') || {}).status || 'upcoming'
+      if (obErr) throw obErr
+
+      // 3. Build matrix
+      trackerData.value = (units || []).map(u => {
+        const uObs = obligations.filter(o => o.unit_id === u.id)
+        
+        const thrOb = uObs.find(o => (o.event_id === 1 || o.event?.id === 1 || o.event?.key === 'thr'));
+        let thrMark = thrOb ? (thrOb.status === true ? 'paid' : getThrMark(currentYear.value)) : 'upcoming';
+
+        return {
+          unit: u.code,
+          owner: u.name,
+          months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+            const mOb = uObs.find(o => 
+              (o.event_id === 2 || o.event?.id === 2 || o.event?.key === 'ipl') && 
+              o.month_index === m
+            );
+            if (!mOb) return 'upcoming'; 
+            return mOb.status === true ? 'paid' : getUnpaidMark(currentYear.value, m); 
+          }),
+          thr: thrMark
+        }
+      })
+    } else {
+      // RESIDENT LOGIC
+      if (!unitId.value) {
+        console.warn("No Unit ID found for this resident")
+        isLoading.value = false
+        return
       }
-    })
-  } else if (isResident.value && session.value?.unit_id) {
-    // Fetch only the resident's obligations
-    const { data: obligations } = await supabase
-      .from('payment_obligations')
-      .select('id, status, event:payment_events(event_type, month, year)')
-      .eq('unit_id', session.value.unit_id)
-      
-    const yearObs = obligations?.filter(o => o.event?.year === currentYear.value) || []
-    
-    trackerData.value = [{
-      unit: unitCode.value,
-      owner: displayName.value,
-      months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-        const mOb = yearObs.find(o => o.event?.event_type === 'IPL' && o.event?.month === m)
-        return mOb ? mOb.status : 'upcoming'
-      }),
-      thr: (yearObs.find(o => o.event?.event_type === 'THR') || {}).status || 'upcoming'
-    }]
+
+      const { data: obligations, error: resErr } = await supabase
+        .from('payment_obligations')
+        .select('id, status, month_index, year, event_id, event:payment_events(key)')
+        .eq('unit_id', unitId.value)
+        .eq('year', currentYear.value)
+
+      if (resErr) throw resErr
+
+      const thrOb = obligations.find(o => (o.event_id === 1 || o.event?.key === 'thr' || o.payment_events?.key === 'thr'));
+      let thrMark = thrOb ? (thrOb.status === true ? 'paid' : getThrMark(currentYear.value)) : 'upcoming';
+
+      trackerData.value = [{
+        unit: unitCode.value || 'N/A',
+        owner: displayName.value || 'Resident',
+        months: [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+          const mOb = obligations.find(o => (o.event_id === 2 || o.event?.key === 'ipl' || o.payment_events?.key === 'ipl') && o.month_index === m)
+          if (!mOb) return 'upcoming';
+          return mOb.status === true ? 'paid' : getUnpaidMark(currentYear.value, m);
+        }),
+        thr: thrMark
+      }]
+    }
+  } catch (error) {
+    console.error("Error fetching tracker data:", error.message)
+  } finally {
+    isLoading.value = false
   }
-  
-  isLoading.value = false
+}
+
+onMounted(() => {
+  fetchTrackerData()
 })
 
+watch(currentYear, () => {
+  fetchTrackerData()
+})
+
+// REASON: Auth state can resolve after mount. We must watch and re-fetch.
+watch([isAdmin, isResident, unitId], ([newAdmin, newRes, newUnitId], [oldAdmin, oldRes, oldUnitId]) => {
+  // Only re-fetch if we actually gained meaningful auth state
+  if (newAdmin !== oldAdmin || newRes !== oldRes || (newRes && newUnitId !== oldUnitId)) {
+    fetchTrackerData()
+  }
+}, { immediate: true })
+
+// Updated icon helper to match the strings we created above
 function getStatusIcon(status) {
    switch(status) {
-      case 'paid': return { icon: 'check_circle', class: 'text-emerald-500' }
-      case 'pending': return { icon: 'warning', class: 'text-amber-500' }
-      case 'late': return { icon: 'close', class: 'text-rose-500' }
-      default: return { icon: 'radio_button_unchecked', class: 'text-slate-300 dark:text-slate-700' }
+      case 'paid': 
+         return { icon: 'check_circle', class: 'text-emerald-500' }
+      case 'late': 
+         return { icon: 'warning', class: 'text-amber-500' }
+      case 'unpaid': 
+         return { icon: 'close', class: 'text-rose-500' }
+      default: 
+         return { icon: 'radio_button_unchecked', class: 'text-slate-300 dark:text-slate-700' }
    }
 }
 </script>

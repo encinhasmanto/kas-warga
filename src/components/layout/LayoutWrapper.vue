@@ -1,5 +1,5 @@
 <template>
-  <component :is="activeLayout">
+  <component :is="activeLayout" :key="role">
     <slot />
   </component>
 </template>

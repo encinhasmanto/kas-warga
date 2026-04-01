@@ -6,6 +6,29 @@
 import { supabase, getCurrentSession } from './supabaseClient.js';
 
 /**
+ * Upload an image file to Supabase Storage (bulletin-assets bucket)
+ * @param {File} file - The image file to upload
+ * @returns {Promise<string>} The public URL of the uploaded image
+ */
+export async function uploadBulletinImage(file) {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `bulletins/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('bulletin-assets')
+    .upload(filePath, file);
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage
+    .from('bulletin-assets')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+/**
  * Get all available bulletins (for both Residents and Admins)
  * @param {Object} options Options for fetching e.g { limit: 10 }
  * @returns {Promise<Object>} { success: boolean, data: bulletins, error: string }
@@ -14,19 +37,16 @@ export async function getBulletins(options = {}) {
   try {
     let query = supabase
       .from('bulletins')
-      .select(`
-        *,
-        author:auth.users(id, email)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     // Filter out unpublished for non-admins if desired, 
     // but the SQL RLS simplifies it mostly.
     query = query.eq('is_published', true);
 
-    if (options.limit) {
-      query = query.limit(options.limit);
-    }
+    const limit = options.limit || 50;
+    const offset = options.offset || 0;
+    query = query.range(offset, offset + limit - 1);
 
     const { data, error } = await query;
 
@@ -61,8 +81,10 @@ export async function createBulletin(payload) {
         content: payload.content,
         category: payload.category || 'General',
         is_published: payload.is_published !== false,
-        image_url: payload.image_url || null,
-        author_id: session.id
+        // image_url: payload.image_url || null,
+        // video_url: payload.video_url || null,
+        content_url: payload.content_url || null,
+        author_id: null  // Custom auth IDs are not valid auth.users UUIDs — column is nullable
       }])
       .select()
       .single();

@@ -124,14 +124,19 @@ export async function generateObligationsForEvent(eventId) {
     }
 
     // Create obligations for each unit
-    const obligations = units.map((unit) => ({
-      event_id: eventId,
-      unit_id: unit.id,
-      amount: event.amount,
-      due_date: event.due_date,
-      status: "pending",
-      created_at: new Date().toISOString(),
-    }));
+    const obligations = units.map((unit) => {
+      // Logic for amounts: 250k for Ruko, 170k for Rumah
+      const unitAmount = unit.category === 'Ruko' ? 250000 : 170000;
+      
+      return {
+        event_id: eventId,
+        unit_id: unit.id,
+        amount: unitAmount, // Use category-based fee
+        due_date: event.due_date,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      };
+    });
 
     const { data, error } = await supabase
       .from("payment_obligations")
@@ -146,7 +151,7 @@ export async function generateObligationsForEvent(eventId) {
     }
 
     console.log(
-      `✅ Generated ${data.length} obligations for event: ${event.name}`,
+      `✅ Generated ${data.length} obligations for event: ${event.display_name}`,
     );
     return {
       success: true,
@@ -225,8 +230,8 @@ export async function getAllPendingObligations() {
       .select(
         `
         *,
-        unit:units(code, display_name, category),
-        event:payment_events(name, event_type, year, month, due_date)
+        unit:units(code, name, category),
+        event:payment_events(display_name, key, periodicity)
       `,
       )
       .eq("status", "pending")

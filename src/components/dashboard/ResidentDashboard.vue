@@ -63,12 +63,18 @@
           <p v-else class="text-white tracking-tight text-3xl font-extrabold leading-tight">Rp {{ formatNumber(nextDueAmount) }}</p>
         </div>
         <div class="mt-4">
-          <button class="w-full py-2.5 bg-white text-primary rounded-lg font-bold text-sm hover:bg-slate-50 transition-colors shadow-sm">
+          <button @click="isPaymentModalOpen = true" class="w-full py-2.5 bg-white text-primary rounded-lg font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95">
             Pay Now
           </button>
         </div>
       </div>
     </section>
+
+    <!-- Payment Modal Component -->
+    <PaymentModal 
+      :isOpen="isPaymentModalOpen" 
+      @close="isPaymentModalOpen = false" 
+    />
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -83,7 +89,7 @@
               <h3 class="text-lg md:text-xl font-bold tracking-tight">Payment Tracker {{ currentYear }}</h3>
               <p class="text-slate-500 text-xs md:text-sm mt-1">Monitoring your annual IPL dues</p>
             </div>
-            <router-link to="/tracker" class="text-primary text-sm font-semibold hover:underline hidden md:block">Full details</router-link>
+            <router-link to="/app/tracker" class="text-primary text-sm font-semibold hover:underline hidden md:block">Full details</router-link>
           </div>
           
           <div v-if="isLoading" class="flex justify-center py-4"><span class="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>
@@ -97,8 +103,9 @@
               <tbody>
                 <tr class="translate-y-2">
                   <td v-for="(monthData, i) in paymentMonths" :key="i" :class="['pt-3 text-center', currentMonth === i+1 ? 'bg-primary/5 rounded-lg' : '']">
-                    <span v-if="monthData?.status === 'paid'" class="material-symbols-outlined text-emerald-500" :class="currentMonth === i+1 ? 'font-bold':''">check_circle</span>
-                    <span v-else-if="monthData?.status === 'pending'" class="material-symbols-outlined text-rose-400">error</span>
+                    <span v-if="monthData?.uiStatus === 'paid'" class="material-symbols-outlined text-emerald-500" :class="currentMonth === i+1 ? 'font-bold':''">check_circle</span>
+                    <span v-else-if="monthData?.uiStatus === 'late'" class="material-symbols-outlined text-amber-500">warning</span>
+                    <span v-else-if="monthData?.uiStatus === 'unpaid'" class="material-symbols-outlined text-rose-500">close</span>
                     <span v-else class="material-symbols-outlined text-slate-300 dark:text-slate-700">radio_button_unchecked</span>
                   </td>
                 </tr>
@@ -111,7 +118,7 @@
         <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div class="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
             <h3 class="text-slate-900 dark:text-slate-100 text-lg md:text-xl font-bold tracking-tight mb-0">Recent Transactions</h3>
-            <router-link to="/history" class="text-primary text-sm font-semibold hover:underline">View All</router-link>
+            <router-link to="/app/history" class="text-primary text-sm font-semibold hover:underline">View All</router-link>
           </div>
           
           <div v-if="isLoading" class="flex justify-center py-8"><span class="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>
@@ -130,9 +137,16 @@
               <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                 <tr v-for="tx in recentTransactions" :key="tx.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td class="p-4 text-xs text-slate-500">{{ tx.date }}</td>
-                  <td class="p-4 font-semibold">{{ tx.description }} <span class="block text-[10px] text-slate-400 font-normal uppercase mt-0.5">Payment</span></td>
-                  <td class="p-4 font-bold text-emerald-500 text-right">+Rp {{ formatNumber(tx.amount) }}</td>
-                  <td class="p-4 text-center"><span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[10px] font-bold uppercase tracking-widest">Completed</span></td>
+                  <td class="p-4 font-semibold">{{ tx.description }} <span class="block text-[10px] text-slate-400 font-normal uppercase mt-0.5">{{ tx.category }}</span></td>
+                  <td class="p-4 font-bold text-right" :class="tx.type === 'withdrawal' ? 'text-rose-500' : 'text-emerald-500'">
+                    {{ tx.type === 'withdrawal' ? '-' : '+' }}Rp {{ formatNumber(tx.amount) }}
+                  </td>
+                  <td class="p-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest"
+                      :class="tx.type === 'withdrawal' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-600'">
+                      {{ tx.type === 'withdrawal' ? 'Expense' : 'Completed' }}
+                    </span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -141,17 +155,20 @@
             <div class="flex flex-col md:hidden divide-y divide-slate-100 dark:divide-slate-800">
               <div v-for="tx in recentTransactions" :key="tx.id" class="flex items-center justify-between p-4 bg-white dark:bg-slate-900">
                 <div class="flex items-center gap-3">
-                  <div class="size-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 shrink-0">
-                    <span class="material-symbols-outlined">payments</span>
+                  <div class="size-10 rounded-full flex items-center justify-center shrink-0"
+                    :class="tx.type === 'withdrawal' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'">
+                    <span class="material-symbols-outlined">{{ tx.type === 'withdrawal' ? 'receipt_long' : 'payments' }}</span>
                   </div>
                   <div class="min-w-0">
                     <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{{ tx.description }}</p>
-                    <p class="text-[11px] text-slate-400">{{ tx.date }} • {{ tx.method }}</p>
+                    <p class="text-[11px] text-slate-400">{{ tx.date }} • {{ tx.category }}</p>
                   </div>
                 </div>
                 <div class="text-right shrink-0">
-                  <p class="text-sm font-bold text-emerald-500">+ Rp {{ formatNumber(tx.amount) }}</p>
-                  <p class="text-[10px] text-slate-400 font-medium uppercase mt-0.5">Paid</p>
+                  <p class="text-sm font-bold" :class="tx.type === 'withdrawal' ? 'text-rose-500' : 'text-emerald-500'">
+                    {{ tx.type === 'withdrawal' ? '-' : '+' }} Rp {{ formatNumber(tx.amount) }}
+                  </p>
+                  <p class="text-[10px] text-slate-400 font-medium uppercase mt-0.5">{{ tx.type === 'withdrawal' ? 'Expense' : 'Paid' }}</p>
                 </div>
               </div>
             </div>
@@ -164,22 +181,43 @@
         <section>
           <div class="flex items-center justify-between mb-4 mt-2 lg:mt-0">
             <h3 class="text-slate-900 dark:text-slate-100 text-lg md:text-xl font-bold tracking-tight">Management Bulletin</h3>
-            <router-link to="/bulletin" class="text-primary text-sm font-semibold hover:underline">See All</router-link>
+            <router-link to="/app/bulletin" class="text-primary text-sm font-semibold hover:underline">See All</router-link>
           </div>
           
-          <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group" @click="$router.push('/bulletin')">
-            <div class="h-48 md:h-40 w-full relative overflow-hidden">
-              <div v-if="!latestBulletin.image_url" class="absolute inset-0 bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-                <span class="material-symbols-outlined text-slate-400 text-4xl">image</span>
+          <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group" @click="$router.push('/app/bulletin')">
+            <div class="h-64 md:h-56 w-full relative overflow-hidden">
+              <!-- Image -->
+              <img 
+                v-if="getFileType(latestBulletin.content_url) === 'image'"
+                :src="latestBulletin.content_url" 
+                alt="Bulletin" 
+                class="relative z-10 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <!-- Video -->
+              <video
+                v-else-if="getFileType(latestBulletin.content_url) === 'video'"
+                :src="latestBulletin.content_url"
+                class="w-full h-full object-cover relative z-10"
+                controls
+                preload="metadata"
+                @click.stop
+              ></video>
+              <!-- PDF -->
+              <div v-else-if="getFileType(latestBulletin.content_url) === 'pdf'" class="w-full h-full flex flex-col items-center justify-center bg-rose-50 dark:bg-rose-900/20 relative z-10">
+                <span class="material-symbols-outlined text-5xl text-rose-500">picture_as_pdf</span>
+                <p class="text-xs font-bold text-rose-500 mt-2">PDF Document</p>
               </div>
-              <img v-else :src="latestBulletin.image_url" alt="Bulletin" class="relative z-10 object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"/>
+              <!-- None -->
+              <div v-else class="absolute inset-0 bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+                <span class="material-symbols-outlined text-slate-400 text-4xl">newspaper</span>
+              </div>
               <div class="absolute top-3 left-3 z-20 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">
                 {{ latestBulletin.category || 'Update' }}
               </div>
             </div>
-            <div class="p-5 relative z-20 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-              <h4 class="font-bold text-slate-900 dark:text-slate-100 mb-2 leading-tight group-hover:text-primary transition-colors">{{ latestBulletin.title }}</h4>
-              <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3">{{ latestBulletin.content }}</p>
+            <div class="p-6 relative z-20 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+              <h4 class="font-bold text-lg md:text-xl text-slate-900 dark:text-slate-100 mb-3 leading-tight group-hover:text-primary transition-colors">{{ latestBulletin.title }}</h4>
+              <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-6 m-0 p-0">{{ latestBulletin.content }}</p>
               <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
                   <span class="material-symbols-outlined text-slate-400 text-[14px]">calendar_month</span>
@@ -217,8 +255,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth.js'
 import { supabase } from '@/services/supabaseClient.js'
-import { getUnitPaymentStatus, getUnitPayments } from '@/services/paymentService.js'
+import { getUnitPaymentStatus, getUnitFullHistory } from '@/services/paymentService.js'
+import { getKasBalance } from '@/services/transactionService.js'
 import { getBulletins } from '@/services/bulletinService.js'
+import PaymentModal from '@/components/modals/PaymentModal.vue'
 
 const { displayName, unitCode, session } = useAuth()
 
@@ -236,6 +276,7 @@ const recentTransactions = ref([])
 const paymentMonths = ref(Array(12).fill(null))
 const latestBulletin = ref(null)
 const isLoading = ref(true)
+const isPaymentModalOpen = ref(false)
 
 const currentYear = new Date().getFullYear()
 const currentMonth = new Date().getMonth() + 1
@@ -251,17 +292,17 @@ onMounted(async () => {
   
   try {
     // 1. Fetch Main Balance (Sum of all IPL + THR records globally)
-    const { data: allPayments } = await supabase
-      .from('payment_transactions')
-      .select('amount, obligation:payment_obligations(event:payment_events(event_type))')
-    
-    if (allPayments) {
-      mainBalance.value = allPayments
-        .filter(p => ['IPL', 'THR'].includes(p.obligation?.event?.event_type))
-        .reduce((sum, p) => sum + (p.amount || 0), 0)
+    // OLD ONE
+    // const { data: allPayments } = await supabase
+    //   .from('payment_transactions')
+    //   .select('amount, obligation:payment_obligations(event:payment_events(key))')
+    // 1. Fetch Main Balance (Global Community Fund) using transactionService
+    const kasRes = await getKasBalance()
+    if (kasRes.success) {
+      mainBalance.value = kasRes.balance
     }
-
-    // 2. Fetch Sinking Fund (Sum of kas deposits with "Iuran Lainnya" in text)
+    
+    // 2. Extrapolate Sinking Fund (Iuran Lainnya) specifically for context
     const { data: allDeposits } = await supabase
       .from('transactions')
       .select('amount, description')
@@ -274,32 +315,55 @@ onMounted(async () => {
     }
 
     // Connect to specific resident data if logged in
-    const uId = session.value?.unit_id
-    if (uId) {
-      // 3. 5-10 Recent Transactions limits slice to 10
-      const { data: unitPayments } = await getUnitPayments(uId)
-      if (unitPayments) {
-        recentTransactions.value = unitPayments.slice(0, 10).map(p => ({
+    const uId = session.value?.unit_id || session.value?.id
+    if (uId && unitCode.value) {
+      // 3. Unified history (IPL/THR + Sinking Fund/General)
+      const { data: historyData } = await getUnitFullHistory(uId, unitCode.value)
+      if (historyData) {
+        recentTransactions.value = historyData.slice(0, 10).map(p => ({
           id: p.id,
-          date: new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-          description: p.obligation?.event?.name || 'Manual Payment',
-          amount: p.amount,
-          method: p.payment_method || 'Transfer'
+          date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+          description: p.description,
+          category: p.category_name,
+          amount: Math.abs(p.amount),
+          type: p.type,
+          method: p.method
         }))
       }
       
       // 4. Tracker View matrix logic
       const { data: statusData } = await getUnitPaymentStatus(uId)
       if (statusData && statusData.obligations) {
-        nextDueAmount.value = statusData.total_remaining || 0
+        nextDueAmount.value = statusData.current_due_total || 0
         
-        const iplObligations = statusData.obligations.filter(o => o.year === currentYear && o.event_name?.includes('IPL'))
+        const iplObligations = statusData.obligations.filter(o => 
+          o.year === currentYear && 
+          (o.event_key?.toLowerCase() === 'ipl' || o.event_id === 2)
+        )
         const months = Array(12).fill(null)
         
         iplObligations.forEach(o => {
           if (o.month >= 1 && o.month <= 12) {
+            
+            // Determine UI status
+            let uiStatus = 'upcoming'
+            if (o.status) {
+              uiStatus = 'paid'
+            } else {
+              const today = new Date()
+              const currentY = today.getFullYear()
+              const currentM = today.getMonth() + 1
+              if (o.year > currentY || (o.year === currentY && o.month >= currentM)) {
+                uiStatus = 'upcoming'
+              } else {
+                const monthsDiff = (currentY * 12 + currentM) - (o.year * 12 + o.month)
+                uiStatus = (monthsDiff < 2 && monthsDiff > 0) ? 'late' : 'unpaid'
+              }
+            }
+            
             months[o.month - 1] = {
               status: o.status,
+              uiStatus: uiStatus,
               amount_due: o.amount_due,
               amount_remaining: o.amount_remaining
             }
@@ -329,6 +393,17 @@ function formatDate(isoString) {
     month: 'short',
     year: 'numeric'
   })
+}
+
+function getFileType(url) {
+  if (!url) return 'none'
+  const lower = url.toLowerCase()
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?|$)/i.test(lower)) return 'image'
+  if (/\.(mp4|webm|mov|avi|mkv|ogg)(\?|$)/i.test(lower)) return 'video'
+  if (/\.pdf(\?|$)/i.test(lower)) return 'pdf'
+  if (lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('vimeo.com')) return 'video'
+  if (lower.includes('/storage/') && !lower.includes('.pdf')) return 'image'
+  return 'unknown'
 }
 </script>
 

@@ -9,11 +9,12 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
  * Get all expense categories
  * @returns {Promise<Object>} { success: boolean, data: categories, error: string }
  */
-export async function getExpenseCategories() {
+export async function getTransactionCategories(type = 'expense') {
   try {
     const { data, error } = await supabase
-      .from("expense_categories")
+      .from("transaction_categories")
       .select("*")
+      .eq("category_type", type)
       .eq("is_active", true)
       .order("name", { ascending: true });
 
@@ -45,7 +46,7 @@ export async function getExpenseCategories() {
 export async function getExpenseCategoryById(categoryId) {
   try {
     const { data, error } = await supabase
-      .from("expense_categories")
+      .from("transaction_categories")
       .select("*")
       .eq("id", categoryId)
       .single();
@@ -93,12 +94,13 @@ export async function createExpenseCategory(categoryData) {
       name: categoryData.name,
       description: categoryData.description,
       code: categoryData.code,
+      category_type: categoryData.category_type || 'expense',
       is_active: true,
       created_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
-      .from("expense_categories")
+      .from("transaction_categories")
       .insert([newCategory])
       .select();
 
@@ -141,7 +143,7 @@ export async function updateExpenseCategory(categoryId, updates) {
     }
 
     const { error } = await supabase
-      .from("expense_categories")
+      .from("transaction_categories")
       .update(updates)
       .eq("id", categoryId);
 
@@ -187,7 +189,7 @@ export async function generateExpenseReport(filters = {}) {
       .select(
         `
         *,
-        category:expense_categories(id, name, code)
+        category:transaction_categories(id, name, code)
       `,
       )
       .eq("type", "withdrawal");
@@ -307,7 +309,7 @@ export async function getTopExpenseCategories(filters = {}, limit = 10) {
       .select(
         `
         amount,
-        category:expense_categories(id, name)
+        category:transaction_categories(id, name)
       `,
       )
       .eq("type", "withdrawal");

@@ -8,10 +8,10 @@
           <p class="text-slate-500 text-sm">Real-time fiscal monitoring and balance reporting.</p>
         </div>
         <div class="flex gap-2">
-          <button class="px-4 py-2 bg-white dark:bg-slate-800 border border-primary/10 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2">
+          <button @click="$router.push('/app/history')" class="px-4 py-2 bg-white dark:bg-slate-800 border border-primary/10 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2">
             <span class="material-symbols-outlined text-sm">download</span> Export Report
           </button>
-          <button class="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-2">
+          <button @click="$router.push('/app/transactions')" class="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-2">
             <span class="material-symbols-outlined text-sm">add</span> New Entry
           </button>
         </div>
@@ -75,8 +75,8 @@
             <p class="text-xs text-slate-500 font-medium">Monthly Performance Analysis</p>
           </div>
           <select class="bg-slate-100 dark:bg-slate-800 border-none text-xs rounded-lg font-bold py-1.5 pl-3 pr-8 focus:ring-primary/20 cursor-pointer">
-            <option>Year 2024</option>
-            <option>Year 2023</option>
+            <option>Year 2026</option>
+            <option>Year 2025</option>
           </select>
         </div>
         <div class="h-64 flex flex-col gap-4">
@@ -157,30 +157,52 @@
           <h3 class="text-2xl font-black tracking-tight">CMS Bulletin Board</h3>
           <p class="text-slate-500 text-sm">Manage announcements and community updates.</p>
         </div>
-        <router-link to="/bulletin" class="text-primary text-sm font-semibold hover:underline">Go to Bulletin Board</router-link>
+        <router-link to="/app/cms" class="text-primary text-sm font-semibold hover:underline">Go to Bulletin Board</router-link>
       </div>
       
-      <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-primary/10 rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row group cursor-pointer" @click="$router.push('/bulletin')">
-        <div class="w-full md:w-64 h-48 md:h-auto bg-slate-100 dark:bg-slate-800 relative shrink-0">
-          <img v-if="latestBulletin.image_url" :src="latestBulletin.image_url" alt="Bulletin" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
-          <div v-else class="w-full h-full flex items-center justify-center">
-            <span class="material-symbols-outlined text-slate-400 text-4xl">image</span>
+      <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-primary/10 rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row group cursor-pointer" @click="$router.push('/app/cms')">
+        <!-- Media Preview Box, enlarged -->
+        <div class="w-full md:w-1/3 lg:w-80 h-56 md:h-auto bg-slate-100 dark:bg-slate-800 relative shrink-0 overflow-hidden">
+          <!-- Image -->
+          <img 
+            v-if="getFileType(latestBulletin.content_url) === 'image'"
+            :src="latestBulletin.content_url" 
+            alt="Bulletin" 
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          <!-- Video -->
+          <video
+            v-else-if="getFileType(latestBulletin.content_url) === 'video'"
+            :src="latestBulletin.content_url"
+            class="w-full h-full object-cover"
+            controls
+            preload="metadata"
+            @click.stop
+          ></video>
+          <!-- PDF -->
+          <div v-else-if="getFileType(latestBulletin.content_url) === 'pdf'" class="w-full h-full flex flex-col items-center justify-center bg-rose-50 dark:bg-rose-900/20">
+            <span class="material-symbols-outlined text-5xl text-rose-500">picture_as_pdf</span>
+            <p class="text-xs font-bold text-rose-500 mt-2">PDF Document</p>
           </div>
-          <div class="absolute top-3 left-3 px-2 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded">Latest</div>
+          <!-- None -->
+          <div v-else class="w-full h-full flex items-center justify-center">
+            <span class="material-symbols-outlined text-slate-400 text-4xl">newspaper</span>
+          </div>
+          <div class="absolute top-3 left-3 px-2 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded shadow-sm">Latest Update</div>
         </div>
-        <div class="p-6 flex flex-col justify-center flex-1">
+        <div class="p-6 md:p-8 flex flex-col justify-center flex-1">
           <div class="flex items-center gap-2 mb-2">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ formatDate(latestBulletin.created_at) }}</span>
             <span class="text-[10px] font-bold text-primary uppercase tracking-widest">• {{ latestBulletin.category || 'General' }}</span>
           </div>
-          <h4 class="text-xl font-bold mb-3 group-hover:text-primary transition-colors">{{ latestBulletin.title }}</h4>
-          <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 max-w-2xl mb-4">{{ latestBulletin.content }}</p>
-          <div class="flex items-center gap-4">
+          <h4 class="text-xl md:text-2xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors">{{ latestBulletin.title }}</h4>
+          <p class="text-sm md:text-base text-slate-500 dark:text-slate-400 line-clamp-4 md:line-clamp-none max-w-3xl mb-6 relative z-10 p-0 m-0">{{ latestBulletin.content }}</p>
+          <div class="flex items-center gap-4 mt-auto">
              <span :class="['px-2 py-1 text-[9px] font-black uppercase tracking-wider rounded', latestBulletin.is_published ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white']">
                {{ latestBulletin.is_published ? 'Published' : 'Draft' }}
              </span>
              <span class="text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
-               <span class="material-symbols-outlined text-sm">person</span> Posted by Admin
+               <span class="material-symbols-outlined text-sm">campaign</span> Posted by Management
              </span>
           </div>
         </div>
@@ -189,7 +211,7 @@
       <div v-else class="bg-white dark:bg-slate-900 p-8 rounded-xl border border-primary/10 border-dashed flex flex-col items-center justify-center min-h-[200px] text-slate-400">
          <span class="material-symbols-outlined text-4xl mb-2">newspaper</span>
          <p class="text-sm font-medium">No announcements have been posted yet.</p>
-         <router-link to="/bulletin" class="mt-4 text-primary text-xs font-bold hover:underline">Create First Bulletin</router-link>
+         <router-link to="/app/cms" class="mt-4 text-primary text-xs font-bold hover:underline">Create First Bulletin</router-link>
       </div>
     </section>
 
@@ -201,7 +223,7 @@
             <h3 class="text-lg font-bold">Recent Transactions</h3>
             <p class="text-sm text-slate-500">Latest financial activities across the community</p>
           </div>
-          <router-link to="/history" class="px-4 py-2 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20 transition-colors">
+          <router-link to="/app/history" class="px-4 py-2 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20 transition-colors">
             View All
           </router-link>
         </div>
@@ -277,6 +299,17 @@ function formatDate(isoString) {
   if (!isoString) return ''
   const d = new Date(isoString)
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function getFileType(url) {
+  if (!url) return 'none'
+  const lower = url.toLowerCase()
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?|$)/i.test(lower)) return 'image'
+  if (/\.(mp4|webm|mov|avi|mkv|ogg)(\?|$)/i.test(lower)) return 'video'
+  if (/\.pdf(\?|$)/i.test(lower)) return 'pdf'
+  if (lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('vimeo.com')) return 'video'
+  if (lower.includes('/storage/') && !lower.includes('.pdf')) return 'image'
+  return 'unknown'
 }
 
 onMounted(async () => {

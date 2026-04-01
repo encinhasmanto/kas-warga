@@ -24,7 +24,7 @@
         <router-link 
           v-for="item in navItems" 
           :key="item.name"
-          :to="item.path"
+          :to="{ name: item.name }"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group"
           :class="[
             $route.name === item.name 
@@ -108,7 +108,7 @@
       <main class="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 no-scrollbar bg-background-light dark:bg-background-dark relative z-10 w-full max-w-xl md:max-w-none mx-auto">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" :key="$route.fullPath" />
           </transition>
         </router-view>
       </main>
@@ -121,7 +121,7 @@
         <router-link 
           v-for="item in navItems" 
           :key="item.name"
-          :to="item.path"
+          :to="{ name: item.name }"
           class="flex flex-1 flex-col items-center justify-center gap-1 transition-colors relative"
           :class="[$route.name === item.name ? 'text-primary' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300']"
         >
@@ -152,10 +152,10 @@ const { session, logout } = useAuth()
 const AR_activeIcon = (name) => route.name === name ? "'FILL' 1" : "'FILL' 0"
 
 const navItems = [
-  { name: 'dashboard', path: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { name: 'history', path: '/history', icon: 'history', label: 'History' },
-  { name: 'tracker', path: '/tracker', icon: 'credit_card', label: 'Payments' },
-  { name: 'bulletin', path: '/bulletin', icon: 'newspaper', label: 'Bulletin' }
+  { name: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+  { name: 'tracker', icon: 'credit_card', label: 'Tracker' },
+  { name: 'history', icon: 'history', label: 'History' },
+  { name: 'bulletin', icon: 'newspaper', label: 'Bulletin' }
 ]
 
 function handleLogout() {

@@ -12,21 +12,39 @@ const SUPABASE_KEY =
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Session management
-let currentSession = {
-  type: null, // "resident" or "admin"
-  id: null,
-  unitCode: null, // for residents
-  username: null, // for admins
-};
+let currentSession = null;
+
+/**
+ * Sync session from storage or manual set
+ */
+function syncSession() {
+  if (!currentSession) {
+    const saved = sessionStorage.getItem('dw_session');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Normalize role/type for services
+      currentSession = {
+        type: (parsed.role === 'Admin' || parsed.role === 'Super Admin') ? 'admin' : 'resident',
+        id: parsed.id || parsed.unitId,
+        unitCode: parsed.unitCode,
+        username: parsed.username,
+        role: parsed.role,
+        isSuperAdmin: parsed.role === 'Super Admin'
+      };
+    }
+  }
+}
 
 export function setCurrentSession(session) {
   currentSession = session;
 }
 
 export function getCurrentSession() {
-  return currentSession;
+  syncSession();
+  return currentSession || { type: null, id: null };
 }
 
 export function clearSession() {
-  currentSession = { type: null, id: null, unitCode: null, username: null };
+  currentSession = null;
+  sessionStorage.removeItem('dw_session');
 }

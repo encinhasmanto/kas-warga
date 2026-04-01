@@ -16,13 +16,18 @@
           <div class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"></div>
         </div>
         <div class="relative z-10 p-12 text-white max-w-lg">
-          <span class="material-symbols-outlined text-6xl mb-6 bg-white/20 p-4 rounded-2xl backdrop-blur-sm border border-white/30 shadow-xl">apartment</span>
-          <h1 class="text-4xl font-extrabold tracking-tight mb-4">Welcome to ResidentPay</h1>
-          <p class="text-primary-100 text-lg leading-relaxed">Experience a seamless way to manage your dues, track history, and stay updated with the community bulletin all exactly in one place.</p>
+          <img src="/icons/Logo Permata Tajur Townhouse-alpha1.png" alt="Permata Tajur Logo" class="w-32 mb-8 drop-shadow-2xl" style="height: 500%; width: 500%; opacity: 1;" />
+          <h1 class="text-6xl font-extrabold tracking-tight mb-4 leading-tight">
+            <span style="color: #BA9C6D;">KasWarga</span> <br> 
+            <span class="text-2xl font-bold opacity-90 block mt-2"><span style="font-size: 18px;">by</span> <span style="color: black;">Permata Tajur Townhouse</span></span>
+          </h1>
+          <p class="text-primary-100 text-lg leading-relaxed text-justify opacity-95">
+            Selamat datang di KasWarga, pencatatan digital Permata Tajur Townhouse. Pencatatan ini dibuat guna kemudahan pemantauan kas warga, dana keluar masuk, dan iuran warga, serta informasi perihal kegiatan dan proyek warga.
+          </p>
           
           <div class="mt-12 flex items-center gap-4 text-sm font-semibold text-white/80">
-            <span class="flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full backdrop-blur-md"><span class="material-symbols-outlined text-[16px]">verified_user</span> Secure Login</span>
-            <span class="flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full backdrop-blur-md"><span class="material-symbols-outlined text-[16px]">speed</span> Realtime Sync</span>
+            <!-- <span class="flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full backdrop-blur-md"><span class="material-symbols-outlined text-[16px]">verified_user</span> Secure Login</span>
+            <span class="flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full backdrop-blur-md"><span class="material-symbols-outlined text-[16px]">speed</span> Realtime Sync</span> -->
           </div>
         </div>
       </div>
@@ -32,11 +37,11 @@
         
         <!-- Header / Logo Area (Mobile Centered, Desktop Left-aligned) -->
         <div class="pt-12 md:pt-16 pb-6 px-8 md:px-12 flex flex-col md:items-start items-center">
-          <div class="md:hidden w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-primary text-4xl">apartment</span>
+          <div class="md:hidden mb-6">
+            <img src="/icons/Logo Permata Tajur Townhouse-alpha1.png" alt="Tajur Logo" class="w-20" style="height: 100; width: 100%; opacity: 1;"/>
           </div>
           <h2 class="text-slate-900 dark:text-slate-100 text-3xl font-bold tracking-tight">Sign In</h2>
-          <p class="text-slate-500 dark:text-slate-400 text-base mt-2">Enter your designated unit code and PIN.</p>
+          <p class="text-slate-500 dark:text-slate-400 text-base mt-2">Enter your Unit Number and PIN.</p>
         </div>
 
         <!-- Form Area -->
@@ -52,13 +57,13 @@
                 class="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-3.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer"
               >
                 <option disabled value="">Choose your unit...</option>
-                <optgroup label="Section A">
+                <optgroup label="Block A">
                   <option v-for="i in 12" :key="'A'+i" :value="'A'+i">A{{ i }}</option>
                 </optgroup>
-                <optgroup label="Section B">
+                <optgroup label="Block B">
                   <option v-for="i in 10" :key="'B'+i" :value="'B'+i">B{{ i }}</option>
                 </optgroup>
-                <optgroup label="Section R">
+                <optgroup label="Ruko R">
                   <option v-for="i in 11" :key="'R'+i" :value="'R'+i">R{{ i }}</option>
                 </optgroup>
                 <optgroup label="Management">
@@ -144,12 +149,7 @@
         
         <!-- Mobile Footer Info -->
         <div class="md:hidden mt-6 pb-6 flex flex-col items-center gap-3">
-          <div class="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-xs">
-            <a href="#" class="hover:text-primary transition-colors">Terms</a>
-            <span class="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full"></span>
-            <a href="#" class="hover:text-primary transition-colors">Privacy</a>
-          </div>
-          <p class="text-[10px] text-slate-400">&copy; 2024 ResidentPay</p>
+          <p class="text-[10px] text-slate-400">&copy; 2026 PTTH</p>
         </div>
       </div>
     </div>
@@ -161,6 +161,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authenticateResident, authenticateAdmin } from '@/services/authService.js'
 import { useAuth } from '@/composables/useAuth.js'
+import { supabase } from '@/services/supabaseClient.js'
 
 const router = useRouter()
 const { setSession } = useAuth()
