@@ -5,9 +5,13 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://zjdlxsjteqjakhrtkxzu.supabase.co";
-const SUPABASE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGx4c2p0ZXFqYWtocnRreHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3MTk4MzAsImV4cCI6MjA2NzI5NTgzMH0.-bXkcX9k7KrGJUMgZsW2ismgox2Tcf0p9-q9e7kuxhI";
+// Use Vite's environment variables
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("❌ Supabase credentials missing! Check your .env file.");
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -19,7 +23,12 @@ let currentSession = null;
  */
 function syncSession() {
   if (!currentSession) {
-    const saved = sessionStorage.getItem('dw_session');
+    // const saved = sessionStorage.getItem('dw_session');
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        // Logic to set your internal currentSession
+      }
+    });
     if (saved) {
       const parsed = JSON.parse(saved);
       // Normalize role/type for services
