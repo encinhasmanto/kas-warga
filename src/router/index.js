@@ -1,0 +1,116 @@
+import { createRouter, createWebHashHistory } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    {
+      path: '/',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+    },
+    {
+      path: '/app',
+      component: () => import('@/components/layout/LayoutWrapper.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/views/DashboardView.vue'),
+        },
+        {
+          path: 'history',
+          name: 'history',
+          component: () => import('@/views/HistoryView.vue'),
+        },
+        {
+          path: 'bulletin',
+          name: 'bulletin',
+          component: () => import('@/views/BulletinView.vue'),
+        },
+        {
+          path: 'tracker',
+          name: 'tracker',
+          component: () => import('@/views/TrackerView.vue'),
+        },
+        {
+          path: 'transactions',
+          name: 'transactions',
+          component: () => import('@/views/ManageTransactionsView.vue'),
+          meta: { requiresAuth: true, requiresSuperAdmin: true }
+        },
+        {
+          path: 'correction',
+          name: 'correction',
+          component: () => import('@/views/CorrectionView.vue'),
+          meta: { requiresAuth: true, requiresSuperAdmin: true }
+        },
+        {
+          path: 'cms',
+          name: 'cms',
+          component: () => import('@/views/BulletinView.vue'),
+          meta: { roles: ['Super Admin', 'Admin'] }
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/DashboardView.vue'), // Placeholder
+        },
+        {
+          path: 'special-events',
+          name: 'special-events',
+          component: () => import('@/views/SpecialEventsView.vue'),
+          meta: { requiresSuperAdmin: true }
+        },
+      ],
+    },
+    // Catch-all: redirect unknown paths to login
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
+    },
+  ],
+})
+
+// Navigation guard — redirect to login if not authenticated and check roles
+// OLD ONE
+// router.beforeEach((to, from, next) => {
+//   const session = JSON.parse(sessionStorage.getItem('dw_session') || 'null')
+  
+//   if (to.meta.requiresAuth && !session) {
+//     return next({ name: 'login' })
+//   }
+  
+//   if (to.meta.roles && session) {
+//     if (!to.meta.roles.includes(session.role)) {
+//       return next({ name: 'dashboard' }) // Redirect unauthorized users to dashboard
+//     }
+//   }
+  
+//   next()
+// })
+
+// NEW ONE
+router.beforeEach((to, from) => {
+  const { isLoggedIn, isAdmin, isSuperAdmin } = useAuth();
+
+  // 1. Check if the route requires authentication
+  if (to.meta.requiresAuth && !isLoggedIn.value) {
+    return { name: 'login' }; // Simply return the destination
+  }
+
+  // 2. Check for Admin-only routes
+  if (to.meta.requiresAdmin && !isAdmin.value) {
+    return { name: 'dashboard' }; // Redirect unauthorized residents back to dashboard
+  }
+
+  // 3. Check for Super Admin-only routes
+  if (to.meta.requiresSuperAdmin && !isSuperAdmin.value) {
+    return { name: 'dashboard' };
+  }
+
+  // If we reach here, navigation is allowed automatically!
+});
+
+export default router
