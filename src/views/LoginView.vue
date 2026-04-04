@@ -16,7 +16,7 @@
           <div class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"></div>
         </div>
         <div class="relative z-10 p-12 text-white max-w-lg">
-          <img src="/icons/Logo Permata Tajur Townhouse-alpha1.png" alt="Permata Tajur Logo" class="w-32 mb-8 drop-shadow-2xl" style="height: 500%; width: 500%; opacity: 1;" />
+          <img src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png" alt="Permata Tajur Logo" class="w-32 mb-8 drop-shadow-2xl" style="height: 500%; width: 500%; opacity: 1;" />
           <h1 class="text-6xl font-extrabold tracking-tight mb-4 leading-tight">
             <span style="color: #BA9C6D;">KasWarga</span> <br> 
             <span class="text-2xl font-bold opacity-90 block mt-2"><span style="font-size: 18px;">by</span> <span style="color: black;">Permata Tajur Townhouse</span></span>
@@ -38,7 +38,7 @@
         <!-- Header / Logo Area (Mobile Centered, Desktop Left-aligned) -->
         <div class="pt-12 md:pt-16 pb-6 px-8 md:px-12 flex flex-col md:items-start items-center">
           <div class="md:hidden mb-6">
-            <img src="/icons/Logo Permata Tajur Townhouse-alpha1.png" alt="Tajur Logo" class="w-20" style="height: 100; width: 100%; opacity: 1;"/>
+            <img src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png" alt="Tajur Logo" class="w-20" style="height: 100; width: 100%; opacity: 1;"/>
           </div>
           <h2 class="text-slate-900 dark:text-slate-100 text-3xl font-bold tracking-tight">Sign In</h2>
           <p class="text-slate-500 dark:text-slate-400 text-base mt-2">Enter your Unit Number and PIN.</p>

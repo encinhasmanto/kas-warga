@@ -17,7 +17,23 @@
         </div>
       </div>
     </section>
-
+    
+    <!-- Next Due Banner (Mobile Only) when there bill -->
+    <div v-if="nextDueAmount > 0" class="lg:hidden bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500 mb-2">
+      <div class="flex items-center gap-3">
+        <div class="size-10 bg-primary rounded-xl flex items-center justify-center text-white scale-90 shadow-sm">
+          <span class="material-symbols-outlined text-lg">event_upcoming</span>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold text-primary uppercase tracking-widest leading-none mb-1">Due: {{ nextDueMonthLabel }}</p>
+          <p class="text-slate-900 dark:text-white font-black text-lg">Rp {{ formatNumber(nextDueAmount) }}</p>
+        </div>
+      </div>
+      <button @click="isPaymentModalOpen = true" class="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-4 py-2.5 rounded-xl active:scale-95 transition-all shadow-sm">
+        Pay Now
+      </button>
+    </div>
+    
     <!-- Balance Section (Responsive Grid) -->
     <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       <div class="flex flex-col flex-1 justify-between rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
@@ -52,24 +68,24 @@
         </div>
       </div>
       
-      <!-- 3rd box on large screens -->
+      <!-- 3rd box: Next Due always show--> 
       <div class="hidden lg:flex flex-col justify-between rounded-2xl p-6 bg-primary text-white shadow-lg shadow-primary/20 relative overflow-hidden group">
         <div class="absolute top-0 right-0 p-4 opacity-10 text-white group-hover:scale-110 transition-transform">
           <span class="material-symbols-outlined text-6xl">event</span>
         </div>
         <div>
-          <p class="text-white/80 text-sm font-medium uppercase tracking-wider mb-2">Next Due Amount</p>
+          <p class="text-white/80 text-sm font-medium uppercase tracking-wider mb-2">Next Due: {{ nextDueMonthLabel }}</p>
           <div v-if="isLoading" class="h-10 w-24 bg-white/20 animate-pulse rounded"></div>
           <p v-else class="text-white tracking-tight text-3xl font-extrabold leading-tight">Rp {{ formatNumber(nextDueAmount) }}</p>
         </div>
-        <div class="mt-4">
-          <button @click="isPaymentModalOpen = true" class="w-full py-2.5 bg-white text-primary rounded-lg font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95">
-            Pay Now
-          </button>
-        </div>
+      <div class="mt-4">
+        <button @click="isPaymentModalOpen = true" class="w-full py-2.5 bg-white text-primary rounded-lg font-bold text-sm hover:bg-slate-50 transition-all shadow-sm active:scale-95">
+          Pay Now
+        </button>
       </div>
-    </section>
-
+    </div>
+  </section>
+    
     <!-- Payment Modal Component -->
     <PaymentModal 
       :isOpen="isPaymentModalOpen" 
@@ -236,10 +252,10 @@
           <!-- Quick support CTA card (Desktop focus) -->
           <div class="mt-6 bg-slate-900 text-white p-6 justify-between rounded-2xl relative overflow-hidden group items-center hidden lg:flex cursor-pointer transition-transform hover:-translate-y-1">
             <div class="relative z-10 w-full">
-              <h4 class="font-bold text-lg mb-1">Need help?</h4>
-              <p class="text-slate-400 text-xs mb-4">Contact building management for support.</p>
-              <button class="w-full py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-sm">
-                Message Support
+              <h4 class="font-bold text-lg mb-1">Butuh Bantuan?</h4>
+              <p class="text-slate-400 text-xs mb-4">Hubungi kami bila ada kendala maupun pertanyaan seputar aplikasi.</p>
+              <button @click="openSupport" class="w-full py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-sm">
+                Hubungi Kami
               </button>
             </div>
             <span class="material-symbols-outlined absolute -right-4 -bottom-4 text-7xl text-white/5 rotate-12 group-hover:rotate-0 transition-transform duration-500">support_agent</span>
@@ -248,6 +264,17 @@
       </div>
 
     </div>
+
+    <!-- Floating Pay Button (Commented Out) -->
+    <!-- <div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 md:hidden">
+      <button 
+        @click="isPaymentModalOpen = true"
+        class="flex items-center gap-2 bg-primary text-white px-8 py-4 rounded-full shadow-2xl shadow-primary/40 font-bold active:scale-95 transition-all hover:bg-primary/90 hover:-translate-y-1"
+      >
+        <span class="material-symbols-outlined text-[20px]">payments</span>
+        <span class="text-sm uppercase tracking-widest">Pay Resident Fees</span>
+      </button>
+    </div> -->
   </div>
 </template>
 
@@ -277,6 +304,7 @@ const paymentMonths = ref(Array(12).fill(null))
 const latestBulletin = ref(null)
 const isLoading = ref(true)
 const isPaymentModalOpen = ref(false)
+const nextDueMonthLabel = ref('')
 
 const currentYear = new Date().getFullYear()
 const currentMonth = new Date().getMonth() + 1
@@ -370,6 +398,17 @@ onMounted(async () => {
           }
         })
         paymentMonths.value = months
+        
+        // Find next due month label
+        const nextObligation = iplObligations
+          .filter(o => !o.status)
+          .sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month))[0]
+        
+        if (nextObligation) {
+          nextDueMonthLabel.value = `${monthNames[nextObligation.month - 1]} ${nextObligation.year}`
+        } else {
+          nextDueMonthLabel.value = 'No Pending Due'
+        }
       }
     }
 
@@ -405,6 +444,11 @@ function getFileType(url) {
   if (lower.includes('/storage/') && !lower.includes('.pdf')) return 'image'
   return 'unknown'
 }
+
+const openSupport = () => {
+  window.open('https://wa.me/6281234967582', '_blank');
+};
+
 </script>
 
 <style scoped>
