@@ -95,6 +95,10 @@
             </div>
           </div>
           
+          <button @click="handleLogout" class="md:hidden relative w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all ml-1">
+            <span class="material-symbols-outlined text-xl">logout</span>
+          </button>
+          
           <div class="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
           
           <div class="hidden lg:text-right lg:block">

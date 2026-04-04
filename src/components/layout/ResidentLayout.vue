@@ -94,6 +94,11 @@
             <span class="absolute top-2 right-2 md:top-2.5 md:right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-background-dark md:dark:border-slate-900"></span>
           </button>
           
+          <button @click="handleLogout" class="md:hidden relative w-10 h-10 flex items-center justify-center rounded-full md:rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all ml-1">
+            <span class="material-symbols-outlined text-xl">logout</span>
+          </button>
+          
+          
           <div class="hidden lg:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-3"></div>
           <div class="hidden lg:block text-right">
             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unit Status</p>
