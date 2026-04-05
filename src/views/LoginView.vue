@@ -241,7 +241,7 @@ async function handleLogin() {
     if (result.success) {
       // Determine role
       let role = 'Resident'
-      if (result.data.role === 'super_admin' || result.data.username === 'Encin') {
+      if (result.data.role === 'super_admin' || result.data.username?.toLowerCase() === 'encin') {
         role = 'Super Admin'
       } else if (result.data.role === 'admin' || selectedUnit.value === 'Admin') {
         role = 'Admin'
