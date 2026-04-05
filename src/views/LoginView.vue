@@ -15,13 +15,13 @@
           <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSllj9N16Ievu2ccFGeizvjGM0whc0corvlghJr943DkTOV76DG13wv1R6aRrtvfYCCNnW8qhu40d6jVtp8L_Y40PYPjDnifmnw3y2UgmE7ccRigYwI-s-AMwPkJTyXMpocpUDxYRfyufStlgQXNf3z3_OroOLAex46WVhGTstHzp6u6ARVdArVfNccGoOXB3Uj56tYuB-3pyi2SBuzLDaXJwRIAHfKbnxIVIt7oUrKaumfD-Nm_AUOLBUtbai0iE1dyIQqY_lSQ" alt="Building Pattern" class="w-full h-full object-cover mix-blend-overlay opacity-20" />
           <div class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"></div>
         </div>
-        <div class="relative z-10 p-12 text-white max-w-lg">
-          <img src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png" alt="Permata Tajur Logo" class="w-32 mb-8 drop-shadow-2xl" style="height: 500%; width: 500%; opacity: 1;" />
-          <h1 class="text-6xl font-extrabold tracking-tight mb-4 leading-tight">
+        <div class="relative z-10 p-8 md:p-12 text-white max-w-lg">
+          <img src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png" alt="Permata Tajur Logo" class="mb-6 md:mb-8 drop-shadow-2xl w-[clamp(12rem,18vw,24rem)]" style="opacity: 1;" />
+          <h1 class="font-extrabold tracking-tight mb-4 leading-tight text-[clamp(2.5rem,5vw,3.75rem)]">
             <span style="color: #BA9C6D;">KasWarga</span> <br> 
-            <span class="text-2xl font-bold opacity-90 block mt-2"><span style="font-size: 18px;">by</span> <span style="color: black;">Permata Tajur Townhouse</span></span>
+            <span class="font-bold opacity-90 block mt-2 text-[clamp(1.125rem,2vw,1.5rem)]"><span class="text-[clamp(0.875rem,1.5vw,1.125rem)]">by</span> <span style="color: black;">Permata Tajur Townhouse</span></span>
           </h1>
-          <p class="text-primary-100 text-lg leading-relaxed text-justify opacity-95">
+          <p class="text-primary-100 leading-relaxed text-justify opacity-95 text-[clamp(0.875rem,1.5vw,1.125rem)]">
             Selamat datang di KasWarga, pencatatan digital Permata Tajur Townhouse. Pencatatan ini dibuat guna kemudahan pemantauan kas warga, dana keluar masuk, dan iuran warga, serta informasi perihal kegiatan dan proyek warga.
           </p>
           
@@ -153,6 +153,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Demo Not Available Modal -->
+    <div v-if="showGuestModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click="showGuestModal = false">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative" @click.stop>
+        <div class="flex items-center gap-4 mb-4">
+          <div class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-3 rounded-full flex items-center justify-center">
+            <span class="material-symbols-outlined text-3xl">construction</span>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Demo Unavailable</h3>
+            <p class="text-xs text-slate-500 font-medium">Under Construction</p>
+          </div>
+        </div>
+        <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
+          Demo or guest mode is currently not available yet. Please check back later.
+        </p>
+        <div class="flex justify-end">
+          <button @click="showGuestModal = false" class="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -161,7 +184,6 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authenticateResident, authenticateAdmin } from '@/services/authService.js'
 import { useAuth } from '@/composables/useAuth.js'
-import { supabase } from '@/services/supabaseClient.js'
 
 const router = useRouter()
 const { setSession } = useAuth()
@@ -171,6 +193,7 @@ const adminUsername = ref('')
 const pin = ref('')
 const errorMsg = ref('')
 const isLoading = ref(false)
+const showGuestModal = ref(false)
 
 function onUnitChange() {
   errorMsg.value = ''
@@ -249,17 +272,7 @@ async function handleLogin() {
 }
 
 function enterGuestMode(role) {
-  const session = {
-    type: 'guest',
-    id: null,
-    unitCode: role === 'Resident' ? 'A1' : null,
-    username: role === 'Resident' ? 'GuestResident' : 'GuestAdmin',
-    displayName: `${role} Demo`,
-    role: role,
-    isGuest: true,
-  }
-  setSession(session)
-  router.push({ name: 'dashboard' })
+  showGuestModal.value = true
 }
 </script>
 

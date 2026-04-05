@@ -89,10 +89,35 @@
         
         <!-- Common Notification Area -->
         <div class="flex items-center justify-end relative">
-          <button class="relative w-10 h-10 flex items-center justify-center rounded-full md:rounded-lg md:bg-slate-100 md:dark:bg-slate-800 text-slate-500 md:text-slate-600 md:dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
-            <span class="material-symbols-outlined">notifications</span>
-            <span class="absolute top-2 right-2 md:top-2.5 md:right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-background-dark md:dark:border-slate-900"></span>
-          </button>
+          <div class="relative">
+            <button @click="toggleNotifications" class="relative w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all shadow-sm">
+              <span class="material-symbols-outlined">notifications</span>
+              <!-- Unread Badge -->
+              <span v-if="hasUnread" class="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
+            </button>
+            <div v-if="showNotifications" class="absolute right-0 top-full mt-2 w-72 md:w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-2 z-50 max-h-96 flex flex-col">
+              <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-bold text-xs uppercase tracking-wider text-slate-400 sticky top-0 bg-white dark:bg-slate-800 shrink-0">Recent Notifications</div>
+              <div class="overflow-y-auto no-scrollbar flex-1">
+                <div v-if="notifications.length === 0" class="p-8 text-center text-slate-400">
+                  <span class="material-symbols-outlined text-4xl mb-2 opacity-20">notifications_off</span>
+                  <p class="text-xs font-medium">No new notifications yet.</p>
+                </div>
+                <div v-else class="flex flex-col">
+                  <div v-for="n in notifications" :key="n.id" class="px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex gap-3 cursor-pointer group">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" :class="n.color">
+                      <span class="material-symbols-outlined text-[16px]">{{ n.icon }}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-primary">{{ n.title }}</p>
+                      <p class="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{{ n.description }}</p>
+                      <p class="text-[9px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">{{ formatNotifDate(n.date) }}</p>
+                    </div>
+                    <div v-if="n.isNew" class="w-1.5 h-1.5 bg-primary rounded-full shrink-0 mt-1.5"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           
           <button @click="handleLogout" class="md:hidden relative w-10 h-10 flex items-center justify-center rounded-full md:rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all ml-1">
             <span class="material-symbols-outlined text-xl">logout</span>
@@ -142,13 +167,31 @@
         </router-link>
       </div>
     </nav>
+
+    <!-- Real-time Toast Pop-ups -->
+    <div class="fixed bottom-24 right-4 z-[200] flex flex-col gap-2 pointer-events-none md:bottom-4 pl-4 pt-4">
+      <transition-group name="toast">
+        <div v-for="t in activeToasts" :key="t.id" class="w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl p-4 flex gap-3 pointer-events-auto transform transition-all">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" :class="t.color">
+            <span class="material-symbols-outlined">{{ t.icon }}</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-xs font-black uppercase text-primary mb-1">New Update</p>
+            <p class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ t.title }}</p>
+            <p class="text-xs text-slate-500 line-clamp-2 mt-0.5">{{ t.description }}</p>
+          </div>
+        </div>
+      </transition-group>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth.js'
+import { fetchInitialNotifications, subscribeToRealtimeNotifications } from '@/services/notificationService.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -162,6 +205,46 @@ const navItems = [
   { name: 'history', icon: 'history', label: 'History' },
   { name: 'bulletin', icon: 'newspaper', label: 'Bulletin' }
 ]
+
+const showNotifications = ref(false)
+const notifications = ref([])
+const hasUnread = ref(false)
+const activeToasts = ref([])
+let unsubNotifications = null
+
+onMounted(async () => {
+  const res = await fetchInitialNotifications()
+  if (res.success) {
+    notifications.value = res.data.map(n => ({...n, isNew: false}))
+  }
+
+  unsubNotifications = subscribeToRealtimeNotifications((newNotif) => {
+    notifications.value.unshift(newNotif)
+    hasUnread.value = true
+    
+    activeToasts.value.push(newNotif)
+    setTimeout(() => {
+      activeToasts.value = activeToasts.value.filter(t => t.id !== newNotif.id)
+    }, 5000)
+  })
+})
+
+onUnmounted(() => {
+  if (unsubNotifications) unsubNotifications()
+})
+
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    hasUnread.value = false
+    notifications.value.forEach(n => n.isNew = false)
+  }
+}
+
+const formatNotifDate = (iso) => {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour:'2-digit', minute:'2-digit' })
+}
 
 function handleLogout() {
   logout()
@@ -182,6 +265,19 @@ function handleLogout() {
 .page-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateX(100%) scale(0.9);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
 }
 
 .safe-bottom {

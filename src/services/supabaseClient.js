@@ -23,7 +23,7 @@ let currentSession = null;
  */
 function syncSession() {
   if (!currentSession) {
-    // const saved = sessionStorage.getItem('dw_session');
+    const saved = sessionStorage.getItem('dw_session');
     supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         // Logic to set your internal currentSession

@@ -196,11 +196,11 @@
       <div class="lg:col-span-1 space-y-6 md:space-y-8">
         <section>
           <div class="flex items-center justify-between mb-4 mt-2 lg:mt-0">
-            <h3 class="text-slate-900 dark:text-slate-100 text-lg md:text-xl font-bold tracking-tight">Management Bulletin</h3>
+            <h3 class="text-slate-900 dark:text-slate-100 text-lg md:text-xl font-bold tracking-tight">Permata Tajur Townhouse<br> <span class="text-primary text-md">Bulletin Board</span></h3>
             <router-link to="/app/bulletin" class="text-primary text-sm font-semibold hover:underline">See All</router-link>
           </div>
           
-          <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group" @click="$router.push('/app/bulletin')">
+          <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group" @click="selectedBulletin = latestBulletin">
             <div class="h-64 md:h-56 w-full relative overflow-hidden">
               <!-- Image -->
               <img 
@@ -224,8 +224,13 @@
                 <p class="text-xs font-bold text-rose-500 mt-2">PDF Document</p>
               </div>
               <!-- None -->
-              <div v-else class="absolute inset-0 bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-                <span class="material-symbols-outlined text-slate-400 text-4xl">newspaper</span>
+              <div v-else class="absolute inset-0 bg-slate-200 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/icons/Logo Permata Tajur Townhouse.jpeg" 
+                  class="absolute w-2/3 md:w-1/2 opacity-20 grayscale pointer-events-none mix-blend-multiply dark:mix-blend-screen" 
+                  alt="Logo Placeholder"
+                />
+                <span class="material-symbols-outlined relative z-10 text-slate-400 text-4xl">newspaper</span>
               </div>
               <div class="absolute top-3 left-3 z-20 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">
                 {{ latestBulletin.category || 'Update' }}
@@ -275,6 +280,13 @@
         <span class="text-sm uppercase tracking-widest">Pay Resident Fees</span>
       </button>
     </div> -->
+    <!-- The New Full Detail Modal -->
+    <BulletinDetailModal 
+      v-if="selectedBulletin" 
+      :bulletin="selectedBulletin" 
+      @close="selectedBulletin = null" 
+    />
+
   </div>
 </template>
 
@@ -286,6 +298,7 @@ import { getUnitPaymentStatus, getUnitFullHistory } from '@/services/paymentServ
 import { getKasBalance } from '@/services/transactionService.js'
 import { getBulletins } from '@/services/bulletinService.js'
 import PaymentModal from '@/components/modals/PaymentModal.vue'
+import BulletinDetailModal from '@/components/common/BulletinDetailModal.vue'
 
 const { displayName, unitCode, session } = useAuth()
 
@@ -302,6 +315,7 @@ const nextDueAmount = ref(0)
 const recentTransactions = ref([])
 const paymentMonths = ref(Array(12).fill(null))
 const latestBulletin = ref(null)
+const selectedBulletin = ref(null)
 const isLoading = ref(true)
 const isPaymentModalOpen = ref(false)
 const nextDueMonthLabel = ref('')
