@@ -154,13 +154,13 @@
     <section class="space-y-6">
       <div class="flex items-end justify-between">
         <div>
-          <h3 class="text-2xl font-black tracking-tight">CMS Bulletin Board</h3>
+          <h3 class="text-2xl font-black tracking-tight">Permata Tajur Townhouse<br> <span class="text-primary text-md">Bulletin Board</span></h3>
           <p class="text-slate-500 text-sm">Manage announcements and community updates.</p>
         </div>
         <router-link to="/app/cms" class="text-primary text-sm font-semibold hover:underline">Go to Bulletin Board</router-link>
       </div>
       
-      <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-primary/10 rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row group cursor-pointer" @click="$router.push('/app/cms')">
+      <div v-if="latestBulletin" class="bg-white dark:bg-slate-900 border border-primary/10 rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row group cursor-pointer" @click="selectedBulletin = latestBulletin">
         <!-- Media Preview Box, enlarged -->
         <div class="w-full md:w-1/3 lg:w-80 h-56 md:h-auto bg-slate-100 dark:bg-slate-800 relative shrink-0 overflow-hidden">
           <!-- Image -->
@@ -259,6 +259,13 @@
         </div>
       </div>
     </section>
+    <!-- The New Full Detail Modal -->
+    <BulletinDetailModal 
+      v-if="selectedBulletin" 
+      :bulletin="selectedBulletin" 
+      @close="selectedBulletin = null" 
+    />
+
   </div>
 </template>
 
@@ -267,6 +274,7 @@ import { ref, onMounted } from 'vue'
 import { supabase } from '@/services/supabaseClient.js'
 import { getKasBalance, getTransactions, getKasBalanceByDateRange, getMonthlyPerformance } from '@/services/transactionService.js'
 import { getBulletins } from '@/services/bulletinService.js'
+import BulletinDetailModal from '@/components/common/BulletinDetailModal.vue'
 
 // Reactive State
 const mainBalance = ref(0)
@@ -280,6 +288,7 @@ const ytdExpense = ref(0)
 
 const recentTransactions = ref([])
 const monthlyData = ref([])
+const selectedBulletin = ref(null)
 const latestBulletin = ref(null)
 const isLoading = ref(true)
 

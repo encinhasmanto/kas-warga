@@ -37,12 +37,9 @@
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Content (HTML/Text)</label>
-              <textarea 
+              <RichTextEditor 
                 v-model="bulletinForm.content"
-                required
-                class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/50 min-h-[120px] placeholder:text-slate-300" 
-                placeholder="Type bulletin content here..."
-              ></textarea>
+              />
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Attachment (Image / Video / PDF)</label>
@@ -128,8 +125,7 @@
                 v-if="getFileType(bulletin.content_url) === 'image'"
                 :src="bulletin.content_url" 
                 alt="Bulletin" 
-                @click="openImageModal(bulletin.content_url)"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <!-- Video -->
               <video
@@ -146,6 +142,11 @@
               </div>
               <!-- No attachment -->
               <div v-else class="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                <img 
+                  src="/icons/Logo Permata Tajur Townhouse.jpeg" 
+                  class="absolute w-1/2 opacity-20 grayscale pointer-events-none" 
+                  alt="Logo Placeholder"
+                />
                 <span class="material-symbols-outlined text-4xl text-slate-300">image</span>
               </div>
               <div class="absolute top-3 left-3" v-if="canManage">
@@ -156,8 +157,14 @@
             </div>
             <div class="p-5">
               <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">{{ formatDate(bulletin.created_at) }}</p>
-              <h5 class="font-bold text-sm mb-2 line-clamp-1 group-hover:text-primary transition-colors">{{ bulletin.title }}</h5>
-              <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-4">{{ bulletin.content }}</p>
+              <!-- <p class="text-xs text-slate-500 line-clamp-2 mb-4">{{ bulletin.content }}</p> -->
+              <div class="cursor-pointer" @click="viewBulletinDetail(bulletin)">
+                <h5 class="font-bold text-lg mb-2 line-clamp-1 group-hover:text-primary transition-colors">{{ bulletin.title }}</h5>
+                <div 
+                  class="prose prose-sm prose-slate dark:prose-invert max-w-none line-clamp-3 mb-4 text-xs"
+                  v-html="bulletin.content"
+                ></div>
+              </div>
               
               <!-- Attachment Action Button -->
               <div v-if="bulletin.content_url" class="mb-3">
@@ -223,14 +230,12 @@
 
     </div>
 
-    <!-- Image Lightbox Modal -->
-    <div v-if="isImageModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm" @click="closeImageModal">
-      <button @click.stop="closeImageModal" class="absolute top-4 right-4 md:top-8 md:right-8 text-white/50 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full">
-        <span class="material-symbols-outlined text-3xl block">close</span>
-      </button>
-      <img :src="modalImageUrl" alt="Full Image" class="max-w-full max-h-full rounded-xl shadow-2xl" @click.stop />
-    </div>
-
+    <!-- The New Full Detail Modal -->
+    <BulletinDetailModal 
+      v-if="selectedBulletin" 
+      :bulletin="selectedBulletin" 
+      @close="selectedBulletin = null" 
+    />
   </div>
 </template>
 
@@ -238,6 +243,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth.js'
 import { getBulletins, createBulletin, updateBulletin, deleteBulletin, uploadBulletinImage } from '@/services/bulletinService.js'
+import RichTextEditor from '@/components/forms/RichTextEditor.vue'
+import BulletinDetailModal from '@/components/common/BulletinDetailModal.vue'
 
 const { isAdmin, isSuperAdmin } = useAuth()
 
@@ -252,11 +259,9 @@ const showForm = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
 
-// Lightbox & Progress States
-const isImageModalOpen = ref(false)
-const modalImageUrl = ref('')
 const isUploading = ref(false)
 const uploadProgress = ref(0)
+const selectedBulletin = ref(null)
 
 // Pagination
 const pageSize = 10
@@ -389,15 +394,8 @@ async function handlePublish() {
   }
 }
 
-function openImageModal(url) {
-  if (!url) return
-  modalImageUrl.value = url
-  isImageModalOpen.value = true
-}
-
-function closeImageModal() {
-  isImageModalOpen.value = false
-  modalImageUrl.value = ''
+function viewBulletinDetail(bulletin) {
+  selectedBulletin.value = bulletin
 }
 
 function editBulletin(bulletin) {
@@ -449,3 +447,21 @@ function formatDate(isoString) {
   })
 }
 </script>
+
+<style>
+/* Paste it here at the very bottom of the file */
+.prose.line-clamp-3 p {
+  margin: 0 !important;
+  display: inline !important;
+}
+
+/* Optional: This ensures the text looks like a normal paragraph 
+   even though we forced it to be 'inline' for the clamp */
+.prose.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+</style>

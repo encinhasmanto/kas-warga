@@ -111,8 +111,7 @@ export async function updateBulletin(id, updates) {
       throw new Error("Unauthorized: Only Admins can update bulletins.");
     }
 
-    // append updated_at timestamp
-    updates.updated_at = new Date().toISOString();
+    // The 'updated_at' column is not in the schema, removing append
 
     const { data, error } = await supabase
       .from('bulletins')
