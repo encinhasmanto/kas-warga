@@ -21,4 +21,16 @@ const activeDashboard = computed(() => {
   }
   return ResidentDashboard
 })
+
+// This will RE-CALCULATE every time a real-time update hits the transactions ref!
+const totalPaidBalance = computed(() => {
+  return transactions.value
+    .filter(t => t.status === 'Paid')
+    .reduce((sum, t) => sum + t.amount, 0);
+});
+
+const nextDueMonth = computed(() => {
+  // Logic to find the first month marked as 'Unpaid'
+  return transactions.value.find(t => t.status === 'Unpaid')?.month_label || 'None';
+});
 </script>

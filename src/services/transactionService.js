@@ -47,9 +47,9 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
 //     if (depositData.unit_id && depositData.month_index) {
 //       await supabase
 //         .from('payment_obligations')
-//         .update({ 
+//         .update({
 //           status: 'paid', // Mark as paid
-//           updated_at: new Date().toISOString() 
+//           updated_at: new Date().toISOString()
 //     })
 //     .eq('unit_id', depositData.unit_id)
 //     .eq('month_index', depositData.month_index)
@@ -86,7 +86,7 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
 // export async function recordDeposit(depositData) {
 //   try {
 //     const session = getCurrentSession();
-    
+
 //     let catId = depositData.category_id;
 //     if (catId === "correction") {
 //       catId = await getOrCreateCorrectionCategory("deposit");
@@ -132,7 +132,11 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
 export async function recordDeposit(depositData) {
   try {
     const session = getCurrentSession();
-    if (!session.isSuperAdmin) {
+    if (!session || !session.isSuperAdmin) {
+      console.warn("❌ Permission Denied: User is not a Super Admin", {
+        role: session?.role,
+        isSuperAdmin: session?.isSuperAdmin,
+      });
       return { success: false, error: "Only Super Admins can record deposits" };
     }
 
@@ -144,15 +148,18 @@ export async function recordDeposit(depositData) {
     // 1. Create the Transaction Record
     const { data: tx, error: txErr } = await supabase
       .from("transactions")
-      .insert([{
-        type: "deposit",
-        transaction_type: "deposit",
-        amount: depositData.amount,
-        category_id: catId,
-        description: depositData.description || "",
-        transaction_date: new Date().toISOString()
-      }])
-      .select().single();
+      .insert([
+        {
+          type: "deposit",
+          transaction_type: "deposit",
+          amount: depositData.amount,
+          category_id: catId,
+          description: depositData.description || "",
+          transaction_date: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
 
     if (txErr) throw txErr;
 
@@ -184,8 +191,15 @@ export async function recordDeposit(depositData) {
 export async function recordWithdrawal(withdrawalData) {
   try {
     const session = getCurrentSession();
-    if (!session.isSuperAdmin) {
-      return { success: false, error: "Only Super Admins can record withdrawals" };
+    if (!session || !session.isSuperAdmin) {
+      console.warn("❌ Permission Denied: User is not a Super Admin", {
+        role: session?.role,
+        isSuperAdmin: session?.isSuperAdmin,
+      });
+      return {
+        success: false,
+        error: "Only Super Admins can record withdrawals",
+      };
     }
 
     if (!withdrawalData.category_id) {
@@ -208,7 +222,8 @@ export async function recordWithdrawal(withdrawalData) {
       category_id: catId,
       // description: withdrawalData.description.replace(/\[.*?\]\s*/g, '').trim(),
       description: withdrawalData.description || "",
-      transaction_date: withdrawalData.transaction_date || new Date().toISOString(),
+      transaction_date:
+        withdrawalData.transaction_date || new Date().toISOString(),
     };
 
     const { data, error } = await supabase
@@ -516,10 +531,11 @@ export async function getMonthlyPerformance(year) {
  * @param {string} type - 'deposit' or 'withdrawal'
  * @returns {Promise<string|null>} Category ID
  */
-async function getOrCreateCorrectionCategory(type = 'expense') {
+async function getOrCreateCorrectionCategory(type = "expense") {
   // 1. Determine the right name and DB type
-  const categoryName = type === 'deposit' ? 'Income Correction' : 'Expense Correction';
-  const categoryType = type === 'deposit' ? 'income' : 'expense';
+  const categoryName =
+    type === "deposit" ? "Income Correction" : "Expense Correction";
+  const categoryType = type === "deposit" ? "income" : "expense";
 
   try {
     // 2. Check if this specific correction category exists
@@ -534,13 +550,15 @@ async function getOrCreateCorrectionCategory(type = 'expense') {
     // 3. Create it if it doesn't exist!
     const { data: created, error } = await supabase
       .from("transaction_categories")
-      .insert([{
-        name: categoryName,
-        description: `Financial adjustments for ${categoryType}`,
-        category_type: categoryType, // Now it's dynamic!
-        is_active: true,
-        created_at: new Date().toISOString(),
-      }])
+      .insert([
+        {
+          name: categoryName,
+          description: `Financial adjustments for ${categoryType}`,
+          category_type: categoryType, // Now it's dynamic!
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+      ])
       .select()
       .single();
 

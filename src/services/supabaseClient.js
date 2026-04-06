@@ -22,25 +22,24 @@ let currentSession = null;
  * Sync session from storage or manual set
  */
 function syncSession() {
-  if (!currentSession) {
-    const saved = sessionStorage.getItem('dw_session');
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        // Logic to set your internal currentSession
-      }
-    });
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Normalize role/type for services
-      currentSession = {
-        type: (parsed.role === 'Admin' || parsed.role === 'Super Admin') ? 'admin' : 'resident',
-        id: parsed.id || parsed.unitId,
-        unitCode: parsed.unitCode,
-        username: parsed.username,
-        role: parsed.role,
-        isSuperAdmin: parsed.role === 'Super Admin'
-      };
-    }
+  const saved = sessionStorage.getItem("dw_session");
+
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    // Normalize role/type for services, supporting both CamelCase and snake_case formats
+    const isSuperAdmin =
+      parsed.role === "Super Admin" || parsed.role === "super_admin";
+    const isAdmin =
+      parsed.role === "Admin" || parsed.role === "admin" || isSuperAdmin;
+    currentSession = {
+      type: isAdmin ? "admin" : "resident",
+      id: parsed.id || parsed.unitId,
+      unitCode: parsed.unitCode,
+      username: parsed.username,
+      displayName: parsed.displayName,
+      role: parsed.role,
+      isSuperAdmin: isSuperAdmin,
+    };
   }
 }
 
@@ -50,10 +49,13 @@ export function setCurrentSession(session) {
 
 export function getCurrentSession() {
   syncSession();
-  return currentSession || { type: null, id: null };
+  if (!currentSession) {
+    return { type: null, id: null, isSuperAdmin: false };
+  }
+  return currentSession;
 }
 
 export function clearSession() {
   currentSession = null;
-  sessionStorage.removeItem('dw_session');
+  sessionStorage.removeItem("dw_session");
 }

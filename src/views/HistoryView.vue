@@ -75,110 +75,140 @@
     <div
       class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px]"
     >
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm whitespace-nowrap">
-          <thead>
-            <tr
-              class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-bold text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-800"
-            >
-              <th class="p-4 ">Date & Time</th>
-              <th class="p-4 flex items-center justify-center" v-if="!isResident">Unit</th>
-              <th class="p-4">Description</th>
-              <th class="p-4">Category</th>
-              <th class="p-4 flex items-center justify-center">Ref/ID</th>
-              <th class="p-4 text-right">Amount</th>
-              <th class="p-4 text-center">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-            <tr v-if="isLoading">
-              <td colspan="7" class="p-8 text-center text-slate-400">
-                <span
-                  class="material-symbols-outlined animate-spin text-3xl text-primary"
-                  >refresh</span
+      <div class="overflow-x-auto" style="max-width: 100vw">
+        <div style="max-height: 60vh; overflow: auto">
+          <table class="w-full text-left text-sm whitespace-nowrap min-w-max">
+            <thead>
+              <tr
+                class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-bold text-xs uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20"
+              >
+                <th class="p-4 sticky top-0 bg-slate-50 dark:bg-slate-800 z-30">
+                  Date & Time
+                </th>
+                <th
+                  class="p-4 flex items-center justify-center sticky top-0 bg-slate-50 dark:bg-slate-800 z-20"
+                  v-if="!isResident"
                 >
-              </td>
-            </tr>
-            <tr v-else-if="filteredTransactions.length === 0">
-              <td
-                colspan="7"
-                class="p-8 text-center text-slate-400 font-medium"
+                  Unit
+                </th>
+                <th class="p-4 sticky top-0 bg-slate-50 dark:bg-slate-800 z-20">
+                  Description
+                </th>
+                <th class="p-4 sticky top-0 bg-slate-50 dark:bg-slate-800 z-20">
+                  Category
+                </th>
+                <th
+                  class="p-4 flex items-center justify-center sticky top-0 bg-slate-50 dark:bg-slate-800 z-20"
+                >
+                  Ref/ID
+                </th>
+                <th
+                  class="p-4 text-right sticky top-0 bg-slate-50 dark:bg-slate-800 z-20"
+                >
+                  Amount
+                </th>
+                <th
+                  class="p-4 text-center sticky top-0 bg-slate-50 dark:bg-slate-800 z-20"
+                >
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <tr v-if="isLoading">
+                <td colspan="7" class="p-8 text-center text-slate-400">
+                  <span
+                    class="material-symbols-outlined animate-spin text-3xl text-primary"
+                    >refresh</span
+                  >
+                </td>
+              </tr>
+              <tr v-else-if="filteredTransactions.length === 0">
+                <td
+                  colspan="7"
+                  class="p-8 text-center text-slate-400 font-medium"
+                >
+                  No transactions found.
+                </td>
+              </tr>
+              <tr
+                v-else
+                v-for="tx in paginatedTransactions"
+                :key="tx.id"
+                class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               >
-                No transactions found.
-              </td>
-            </tr>
-            <tr
-              v-else
-              v-for="tx in paginatedTransactions"
-              :key="tx.id"
-              class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-            >
-              <td class="p-4 text-slate-500 text-xs">
-                {{ tx.dateShort }}<br /><span class="text-[10px]">{{
-                  tx.time
-                }}</span>
-              </td>
-              <td class="p-4 font-bold text-primary flex items-center justify-center" v-if="isAdmin">
-                {{ tx.unitDisplay || "-" }}
-              </td>
-              <td
-                class="p-4 font-semibold text-slate-900 dark:text-slate-100"
-                :title="tx.description"
-              >
-                <!-- {{ tx.description }} -->
-                <div class="font-bold text-slate-900 dark:text-slate-100 break-words leading-relaxed">
-                 {{ cleanDescription(tx.description, tx.category_name) }}
-                </div>
-              </td>
-              <td class="p-4">
-                <span
-                  :class="[
-                    'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border',
+                <td class="p-4 text-slate-500 text-xs">
+                  {{ tx.dateShort }}<br /><span class="text-[10px]">{{
+                    tx.time
+                  }}</span>
+                </td>
+                <td
+                  class="p-4 font-bold text-primary flex items-center justify-center"
+                  v-if="isAdmin"
+                >
+                  {{ tx.unitDisplay || "-" }}
+                </td>
+                <td
+                  class="p-4 font-semibold text-slate-900 dark:text-slate-100"
+                  :title="tx.description"
+                >
+                  <!-- {{ tx.description }} -->
+                  <div
+                    class="font-bold text-slate-900 dark:text-slate-100 break-words leading-relaxed"
+                  >
+                    {{ cleanDescription(tx.description, tx.category_name) }}
+                  </div>
+                </td>
+                <td class="p-4">
+                  <span
+                    :class="[
+                      'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border',
+                      tx.type === 'deposit' || tx.type === 'Income'
+                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+                    ]"
+                  >
+                    {{
+                      tx.type === "deposit" || tx.type === "Income"
+                        ? "INCOME"
+                        : "EXPENSE"
+                    }}
+                  </span>
+                </td>
+                <td class="p-4 text-xs font-mono text-slate-400">
+                  TRX-{{ tx.id.substring(0, 6).toUpperCase() }}
+                </td>
+                <td
+                  class="p-4 text-right font-bold"
+                  :class="
                     tx.type === 'deposit' || tx.type === 'Income'
-                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-600 border-rose-500/20',
-                  ]"
+                      ? 'text-emerald-500'
+                      : 'text-rose-500'
+                  "
                 >
                   {{
-                    tx.type === "deposit" || tx.type === "Income"
-                      ? "INCOME"
-                      : "EXPENSE"
-                  }}
-                </span>
-              </td>
-              <td class="p-4 text-xs font-mono text-slate-400">
-                TRX-{{ tx.id.substring(0, 6).toUpperCase() }}
-              </td>
-              <td
-                class="p-4 text-right font-bold"
-                :class="
-                  tx.type === 'deposit' || tx.type === 'Income'
-                    ? 'text-emerald-500'
-                    : 'text-rose-500'
-                "
-              >
-                {{
-                  tx.type === "deposit" || tx.type === "Income" ? "+" : "-"
-                }}Rp {{ formatNumber(tx.amount) }}
-              </td>
-              <td class="p-4 text-center">
-                <span
-                  class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                >
+                    tx.type === "deposit" || tx.type === "Income" ? "+" : "-"
+                  }}Rp {{ formatNumber(tx.amount) }}
+                </td>
+                <td class="p-4 text-center">
                   <span
-                    class="w-1.5 h-1.5 rounded-full inline-block mr-1"
-                    :class="
-                      tx.status === 'Completed'
-                        ? 'bg-emerald-500'
-                        : 'bg-amber-500'
-                    "
-                  ></span
-                  >{{ tx.status }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                    class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  >
+                    <span
+                      class="w-1.5 h-1.5 rounded-full inline-block mr-1"
+                      :class="
+                        tx.status === 'Completed'
+                          ? 'bg-emerald-500'
+                          : 'bg-amber-500'
+                      "
+                    ></span
+                    >{{ tx.status }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Footer Pagination -->
@@ -237,20 +267,37 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { supabase } from "@/services/supabaseClient.js";
 import { useAuth } from "@/composables/useAuth.js";
 import { getTransactions } from "@/services/transactionService.js";
-import { getUnitPaymentStatus, getUnitFullHistory } from "@/services/paymentService.js";
+import {
+  getUnitPaymentStatus,
+  getUnitFullHistory,
+} from "@/services/paymentService.js";
 
-const { isResident, isAdmin, session, unitCode } = useAuth();
+const { isResident, isAdmin, session, unitCode, unitId } = useAuth();
 
 const allTransactions = ref([]);
 const isLoading = ref(true);
+const hasLoaded = ref(false);
 const searchQuery = ref("");
 const filterType = ref("all");
 const currentPage = ref(1);
 const itemsPerPage = 25;
+const historySubscriptions = [];
+
+function cleanupHistorySubscriptions() {
+  historySubscriptions.forEach((channel) => {
+    if (channel) supabase.removeChannel(channel);
+  });
+  historySubscriptions.length = 0;
+}
+
+function getHistoryUnitFilter() {
+  const uId = unitId.value || session.value?.unit_id || session.value?.id;
+  return !isAdmin.value && uId ? `unit_id=eq.${uId}` : undefined;
+}
 
 function formatNumber(val) {
   if (!val && val !== 0) return "0";
@@ -334,10 +381,11 @@ const paginationEnd = computed(() =>
   Math.min(currentPage.value * itemsPerPage, filteredTransactions.value.length),
 );
 
-onMounted(async () => {
-  isLoading.value = true;
+async function fetchHistoryData(forceLoading = false) {
+  if (forceLoading || !hasLoaded.value) {
+    isLoading.value = true;
+  }
 
-  // Fetch Units for lookup
   const unitLookup = {};
   const { data: unitsData } = await supabase.from("units").select("code, name");
   if (unitsData) {
@@ -355,13 +403,12 @@ onMounted(async () => {
         if (tx.description && tx.description.includes("Unit")) {
           const parts = tx.description.split("Unit");
           if (parts.length > 1) {
-            unitCode = parts[1].trim().split(" ")[0]; // Get first word after 'Unit'
+            unitCode = parts[1].trim().split(" ")[0];
             const ownerName = unitLookup[unitCode];
             unitDisplay = ownerName ? `${unitCode} ${ownerName}` : unitCode;
           }
         }
 
-        // Build enhanced description with category name
         const categoryName =
           tx.category_name || (tx.type === "deposit" ? "Income" : "General");
         const baseDescription =
@@ -395,13 +442,16 @@ onMounted(async () => {
         };
       });
     }
-  } else if (isResident.value && (session.value?.id || session.value?.unit_id) && unitCode.value) {
+  } else if (
+    isResident.value &&
+    (session.value?.id || session.value?.unit_id) &&
+    unitCode.value
+  ) {
     const uId = session.value?.unit_id || session.value?.id;
     const res = await getUnitFullHistory(uId, unitCode.value);
     if (res.success) {
       allTransactions.value = res.data.slice(0, 100).map((tx) => {
         const d = new Date(tx.date);
-        
         return {
           id: tx.id,
           dateShort: d.toLocaleDateString("en-US", {
@@ -413,10 +463,10 @@ onMounted(async () => {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          unit: tx.type === 'withdrawal' ? 'Global' : '-',
+          unit: tx.type === "withdrawal" ? "Global" : "-",
           description: tx.description,
           category_name: tx.category_name,
-          type: tx.type === 'withdrawal' ? "Expense" : "Income", 
+          type: tx.type === "withdrawal" ? "Expense" : "Income",
           amount: tx.amount,
           status: tx.status,
           transaction_date: tx.date,
@@ -425,40 +475,117 @@ onMounted(async () => {
     }
   }
 
+  hasLoaded.value = true;
   isLoading.value = false;
+}
+
+function subscribeHistoryUpdates() {
+  cleanupHistorySubscriptions();
+
+  const paymentFilter = getHistoryUnitFilter();
+
+  const transactionChannel = supabase
+    .channel("history-transactions")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "transactions" },
+      () => fetchHistoryData(),
+    )
+    .subscribe();
+
+  historySubscriptions.push(transactionChannel);
+
+  const paymentTxChannel = supabase
+    .channel("history-payment-transactions")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "payment_transactions",
+        ...(paymentFilter ? { filter: paymentFilter } : {}),
+      },
+      () => fetchHistoryData(),
+    )
+    .subscribe();
+
+  historySubscriptions.push(paymentTxChannel);
+
+  const obligationChannel = supabase
+    .channel("history-obligations")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "payment_obligations",
+        ...(paymentFilter ? { filter: paymentFilter } : {}),
+      },
+      () => fetchHistoryData(),
+    )
+    .subscribe();
+
+  historySubscriptions.push(obligationChannel);
+}
+
+watch(
+  [session, unitCode, unitId, isAdmin],
+  ([newSession, newUnitCode]) => {
+    if (isAdmin.value || (newSession && newUnitCode)) {
+      subscribeHistoryUpdates();
+    } else {
+      cleanupHistorySubscriptions();
+    }
+  },
+  { immediate: true },
+);
+
+onMounted(async () => {
+  await fetchHistoryData(true);
+});
+
+onUnmounted(() => {
+  historySubscriptions.forEach((channel) => {
+    if (channel) supabase.removeChannel(channel);
+  });
 });
 
 const cleanDescription = (desc, categoryName) => {
   if (!desc) return `[${categoryName}]`;
-  
+
   // 1. Strip any existing brackets from the string to prevent doubling
-  let rawText = desc.replace(/\[.*?\]\s*/g, '').trim();
+  let rawText = desc.replace(/\[.*?\]\s*/g, "").trim();
 
   // 2. Remove "Payment" and "Unit" clutter
   let clean = rawText
-    .replace(/Payment|IPL Payment|THR Payment/gi, '')
-    .replace(/\s*-\s*Unit\s*\w+/gi, '')
-    .replace(/^-+\s*|\s*-+\s*$/g, '')
+    .replace(/Payment|IPL Payment|THR Payment/gi, "")
+    .replace(/\s*-\s*Unit\s*\w+/gi, "")
+    .replace(/^-+\s*|\s*-+\s*$/g, "")
     .trim();
 
   // Special logic for Sinking Fund: if the category already has the project name (e.g. "Sinking Fund (Tembok)"),
   // and the description is just "Iuran Lainnya - Tembok", we can clean it to be less redundant.
-  if (categoryName.includes('Sinking Fund')) {
-    clean = clean.replace(/Iuran Lainnya/gi, '').trim();
-    
+  if (categoryName.includes("Sinking Fund")) {
+    clean = clean.replace(/Iuran Lainnya/gi, "").trim();
+
     // Check if the project name is already in the categoryName brackets
     const match = categoryName.match(/\((.*?)\)/);
-    if (match && match[1] && clean.toLowerCase().includes(match[1].toLowerCase())) {
-        // If they match, just return the category tag or keep only the unique parts of the description
-        if (clean.toLowerCase() === match[1].toLowerCase()) return `[${categoryName}]`;
+    if (
+      match &&
+      match[1] &&
+      clean.toLowerCase().includes(match[1].toLowerCase())
+    ) {
+      // If they match, just return the category tag or keep only the unique parts of the description
+      if (clean.toLowerCase() === match[1].toLowerCase())
+        return `[${categoryName}]`;
     }
   }
 
   // 3. Special Logic for Corrections
-  if (categoryName?.toLowerCase().includes('correction')) {
+  if (categoryName?.toLowerCase().includes("correction")) {
     return `[CORRECTION] ${clean}`;
   }
 
   return `[${categoryName}] ${clean}`;
-}
+};
 </script>
