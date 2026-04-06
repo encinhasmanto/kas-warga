@@ -67,8 +67,10 @@
             v-for="item in section.items.filter((i) => i.name === 'settings')"
             :key="item.name"
             @click="
-              openSettingsModal;
-              showMobileMenu = false;
+              () => {
+                openSettingsModal();
+                showMobileMenu = false;
+              }
             "
             class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary"
           >
@@ -358,9 +360,23 @@ const hasUnread = ref(false);
 const activeToasts = ref([]);
 let unsubNotifications = null;
 
-const session = computed(() =>
-  JSON.parse(sessionStorage.getItem("dw_session") || "{}"),
-);
+const session = computed(() => {
+  const raw = JSON.parse(sessionStorage.getItem("dw_session") || "{}");
+  // Normalize role for super admin
+  let role = raw.role;
+  if (
+    role === "super_admin" ||
+    (raw.username && raw.username.toLowerCase() === "encin")
+  ) {
+    role = "Super Admin";
+  } else if (role === "admin" || raw.type === "admin") {
+    role = "Admin";
+  }
+  return {
+    ...raw,
+    role,
+  };
+});
 
 // Notifications logic
 onMounted(async () => {

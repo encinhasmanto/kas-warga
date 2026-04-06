@@ -553,20 +553,6 @@ const incomeData = ref({
   notes: "",
 });
 
-// OLD ONE
-// function resetIncome() {
-//   incomeData.value = {
-//     categoryId: '',
-//     categoryName: '',
-//     categoryCode: '',
-//     type: '',
-//     unit: '',
-//     amount: '',
-//     projectName: '',
-//     notes: ''
-//   }
-// }
-// NEW ONE
 function resetIncome() {
   incomeData.value = {
     amount: "",
