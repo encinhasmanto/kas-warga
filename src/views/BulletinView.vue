@@ -274,7 +274,7 @@
                 </h5>
                 <div
                   class="prose prose-sm prose-slate dark:prose-invert max-w-none line-clamp-3 mb-4 text-xs"
-                  v-html="bulletin.content"
+                  v-html="sanitizePreview(bulletin.content)"
                 ></div>
               </div>
 
@@ -391,6 +391,8 @@ import {
 import RichTextEditor from "@/components/forms/RichTextEditor.vue";
 import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
 import { supabase } from "@/services/supabaseClient";
+import { sanitizeHtml } from "@/utils/sanitizeHtml";
+import { formatDate as formatDateUtil, getFileType as getFileTypeUtil } from "@/utils/formatUtils";
 
 let bulletinSubscription = null;
 
@@ -432,17 +434,6 @@ const subscribeToBulletins = () => {
     .subscribe();
 };
 
-onMounted(() => {
-  // 1. Fetch initial data
-  // 2. Start listening
-  subscribeToBulletins();
-});
-
-onUnmounted(() => {
-  // CRITICAL: Stop listening when the user leaves the page to save battery/data
-  if (bulletinSubscription) supabase.removeChannel(bulletinSubscription);
-});
-
 const { isAdmin, isSuperAdmin } = useAuth();
 
 // Only admins can see the CMS management tools
@@ -482,14 +473,17 @@ const handleResize = () => {
   isLgScreen.value = window.innerWidth >= 1024;
 };
 
-// Initialization
+// Single onMounted: fetch data + subscribe + resize listener
 onMounted(() => {
   fetchBulletins();
+  subscribeToBulletins();
   window.addEventListener("resize", handleResize);
 });
 
+// Single onUnmounted: cleanup all subscriptions and listeners
 onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
+  if (bulletinSubscription) supabase.removeChannel(bulletinSubscription);
 });
 
 async function fetchBulletins() {
@@ -650,6 +644,11 @@ function formatDate(isoString) {
     month: "short",
     year: "numeric",
   });
+}
+
+function sanitizePreview(html) {
+  // Keep short preview but sanitize fully
+  return sanitizeHtml(html);
 }
 </script>
 

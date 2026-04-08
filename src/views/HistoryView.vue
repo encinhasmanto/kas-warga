@@ -289,7 +289,11 @@ const historySubscriptions = [];
 
 function cleanupHistorySubscriptions() {
   historySubscriptions.forEach((channel) => {
-    if (channel) supabase.removeChannel(channel);
+    try {
+      if (channel) supabase.removeChannel(channel);
+    } catch (e) {
+      /* ignore */
+    }
   });
   historySubscriptions.length = 0;
 }
@@ -398,9 +402,13 @@ async function fetchHistoryData(forceLoading = false) {
       allTransactions.value = res.data.slice(0, 100).map((tx) => {
         const d = new Date(tx.transaction_date);
 
-        let unitCode = "-";
+        let unitCode = tx.unit?.code || "-";
         let unitDisplay = "-";
-        if (tx.description && tx.description.includes("Unit")) {
+        if (unitCode !== "-") {
+          const ownerName = unitLookup[unitCode];
+          unitDisplay = ownerName ? `${unitCode} ${ownerName}` : unitCode;
+        } else if (tx.description && tx.description.includes("Unit")) {
+          // Fallback for legacy data without unit_id
           const parts = tx.description.split("Unit");
           if (parts.length > 1) {
             unitCode = parts[1].trim().split(" ")[0];
@@ -558,14 +566,16 @@ const cleanDescription = (desc, categoryName) => {
 
   // 2. Remove "Payment" and "Unit" clutter
   let clean = rawText
-    .replace(/Payment|IPL Payment|THR Payment/gi, "")
+    .replace(/Payment|IPL Payment|THR Payment|Iuran Lainnya/gi, "")
     .replace(/\s*-\s*Unit\s*\w+/gi, "")
     .replace(/^-+\s*|\s*-+\s*$/g, "")
     .trim();
 
-  // Special logic for Sinking Fund: if the category already has the project name (e.g. "Sinking Fund (Tembok)"),
-  // and the description is just "Iuran Lainnya - Tembok", we can clean it to be less redundant.
-  if (categoryName.includes("Sinking Fund")) {
+  // Special logic for Sinking Fund: if the category already has the project name
+  if (
+    categoryName.includes("Sinking Fund") ||
+    categoryName.includes("Iuran Lainnya")
+  ) {
     clean = clean.replace(/Iuran Lainnya/gi, "").trim();
 
     // Check if the project name is already in the categoryName brackets
@@ -586,6 +596,6 @@ const cleanDescription = (desc, categoryName) => {
     return `[CORRECTION] ${clean}`;
   }
 
-  return `[${categoryName}] ${clean}`;
+  return clean ? `[${categoryName}] ${clean}` : `[${categoryName}]`;
 };
 </script>

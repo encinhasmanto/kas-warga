@@ -298,15 +298,22 @@
     </div>
 
     <!-- System Settings Modal -->
-    <div
-      v-if="showSettingsModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      @click="showSettingsModal = false"
-    >
+    <teleport to="body">
       <div
-        class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative"
-        @click.stop
+        v-if="showSettingsModal"
+        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       >
+        <!-- Backdrop (Edge-to-edge background) -->
+        <div 
+          class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+          @click="showSettingsModal = false"
+        ></div>
+        
+        <!-- Modal Content -->
+        <div
+          class="relative bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl overflow-hidden"
+          @click.stop
+        >
         <div class="flex items-center gap-4 mb-4">
           <div
             class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-3 rounded-full flex items-center justify-center"
@@ -336,7 +343,8 @@
         </div>
       </div>
     </div>
-  </div>
+  </teleport>
+</div>
 </template>
 
 <script setup>

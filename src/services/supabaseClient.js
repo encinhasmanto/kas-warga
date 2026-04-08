@@ -25,7 +25,15 @@ function syncSession() {
   const saved = sessionStorage.getItem("dw_session");
 
   if (saved) {
-    const parsed = JSON.parse(saved);
+    let parsed = null;
+    try {
+      parsed = JSON.parse(saved);
+    } catch (err) {
+      console.warn("Corrupted session storage, clearing dw_session", err);
+      sessionStorage.removeItem("dw_session");
+      parsed = null;
+    }
+    if (!parsed) return;
     // Normalize role/type for services, supporting both CamelCase and snake_case formats
     const isSuperAdmin =
       parsed.role === "Super Admin" || parsed.role === "super_admin";

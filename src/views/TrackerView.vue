@@ -7,6 +7,7 @@
           <select
             v-model="currentYear"
             class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer hover:border-primary/30"
+            style="padding-right: 30px"
           >
             <option v-for="year in availableYears" :key="year" :value="year">
               {{ year }}
@@ -173,15 +174,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, onUnmounted } from "vue";
 import { useAuth } from "@/composables/useAuth";
 import { supabase } from "@/services/supabaseClient.js";
 
 const { isResident, isAdmin, session, displayName, unitCode, unitId } =
   useAuth();
 
+// Reactive State for Tracker - serving year selection and data
 const currentYear = ref(new Date().getFullYear());
 const availableYears = ref([
+  new Date().getFullYear() - 2,
   new Date().getFullYear() - 1,
   new Date().getFullYear(),
   new Date().getFullYear() + 1,
@@ -197,14 +200,16 @@ function isCurrentMonth(index) {
 const trackerData = ref([]);
 const isLoading = ref(true);
 
-// Setup realtime subscription for transactions
+// Setup realtime subscription for payment obligations changes
+let trackerChannel = null;
+
 const setupRealtimeSubscription = () => {
   if (!session.value) return; // Don't subscribe if not authenticated
 
   const options = {
     event: "*",
     schema: "public",
-    table: "transactions",
+    table: "payment_obligations", // Listen to obligations, not transactions
   };
 
   // 🔒 SECURITY: Residents only listen to THEIR unit. Admins see everything
@@ -212,10 +217,20 @@ const setupRealtimeSubscription = () => {
     options.filter = `unit_id=eq.${unitId.value}`;
   }
 
-  supabase
-    .channel("transaction-updates")
+  // remove previous channel if exists
+  if (trackerChannel) {
+    try {
+      supabase.removeChannel(trackerChannel);
+    } catch (e) {
+      /* ignore */
+    }
+    trackerChannel = null;
+  }
+
+  trackerChannel = supabase
+    .channel("payment-obligation-updates")
     .on("postgres_changes", options, (payload) => {
-      // Refresh tracker data when transactions change
+      // Refresh tracker data when payment obligations change
       fetchTrackerData();
     })
     .subscribe();
@@ -231,6 +246,11 @@ watch(
   },
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (trackerChannel) supabase.removeChannel(trackerChannel);
+  trackerChannel = null;
+});
 
 function getUnpaidMark(obYear, obMonth) {
   const today = new Date();
@@ -250,111 +270,84 @@ function getThrMark(obYear) {
   return "unpaid";
 }
 
-// NEW ONE
+// NEW ONE - OPTIMIZED WITH RPC FUNCTIONS
 const fetchTrackerData = async () => {
   isLoading.value = true;
 
   try {
     if (isAdmin.value) {
-      // 1. Fetch units
-      const { data: units, error: unitErr } = await supabase
-        .from("units")
-        .select("id, code, name, no_sequence_unit")
-        .order("no_sequence_unit");
-
-      if (unitErr) throw unitErr;
-
-      // 2. Fetch obligations
-      const { data: obligations, error: obErr } = await supabase
-        .from("payment_obligations")
-        .select(
-          "id, status, unit_id, month_index, year, event_id, event:payment_events(key)",
-        )
-        .eq("year", currentYear.value); // Filter in DB, not JS for better performance
-
-      if (obErr) throw obErr;
-
-      // 3. Build matrix
-      trackerData.value = (units || []).map((u) => {
-        const uObs = obligations.filter((o) => o.unit_id === u.id);
-
-        const thrOb = uObs.find(
-          (o) =>
-            o.event_id === 1 || o.event?.id === 1 || o.event?.key === "thr",
-        );
-        let thrMark = thrOb
-          ? thrOb.status === true
-            ? "paid"
-            : getThrMark(currentYear.value)
-          : "upcoming";
-
-        return {
-          unit: u.code,
-          owner: u.name,
-          months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
-            const mOb = uObs.find(
-              (o) =>
-                (o.event_id === 2 ||
-                  o.event?.id === 2 ||
-                  o.event?.key === "ipl") &&
-                o.month_index === m,
-            );
-            if (!mOb) return "upcoming";
-            return mOb.status === true
-              ? "paid"
-              : getUnpaidMark(currentYear.value, m);
-          }),
-          thr: thrMark,
-        };
+      // OPTIMIZED: Use RPC get_admin_tracker() instead of manual queries
+      const { data, error } = await supabase.rpc("get_admin_tracker", {
+        p_year: currentYear.value,
       });
+
+      if (error) throw error;
+
+      // Transform RPC response into UI format
+      trackerData.value = (data || []).map((row) => ({
+        unit: row.unit_code,
+        owner: row.owner_name,
+        months: [
+          { status: row.month_1, month: 1 },
+          { status: row.month_2, month: 2 },
+          { status: row.month_3, month: 3 },
+          { status: row.month_4, month: 4 },
+          { status: row.month_5, month: 5 },
+          { status: row.month_6, month: 6 },
+          { status: row.month_7, month: 7 },
+          { status: row.month_8, month: 8 },
+          { status: row.month_9, month: 9 },
+          { status: row.month_10, month: 10 },
+          { status: row.month_11, month: 11 },
+          { status: row.month_12, month: 12 },
+        ].map((m) =>
+          m.status ? "paid" : getUnpaidMark(currentYear.value, m.month),
+        ),
+        thr: row.thr_status ? "paid" : getThrMark(currentYear.value),
+      }));
     } else {
-      // RESIDENT LOGIC
+      // RESIDENT LOGIC - OPTIMIZED: Use RPC get_resident_tracker()
       if (!unitId.value) {
         console.warn("No Unit ID found for this resident");
         isLoading.value = false;
         return;
       }
 
-      const { data: obligations, error: resErr } = await supabase
-        .from("payment_obligations")
-        .select(
-          "id, status, month_index, year, event_id, event:payment_events(key)",
-        )
-        .eq("unit_id", unitId.value)
-        .eq("year", currentYear.value);
+      const { data, error } = await supabase.rpc("get_resident_tracker", {
+        p_unit_id: unitId.value,
+        p_year: currentYear.value,
+      });
 
-      if (resErr) throw resErr;
+      if (error) throw error;
 
-      const thrOb = obligations.find(
-        (o) =>
-          o.event_id === 1 ||
-          o.event?.key === "thr" ||
-          o.payment_events?.key === "thr",
-      );
-      let thrMark = thrOb
-        ? thrOb.status === true
-          ? "paid"
-          : getThrMark(currentYear.value)
-        : "upcoming";
+      if (!data || data.length === 0) {
+        trackerData.value = [];
+        isLoading.value = false;
+        return;
+      }
 
+      const row = data[0];
       trackerData.value = [
         {
-          unit: unitCode.value || "N/A",
-          owner: displayName.value || "Resident",
-          months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
-            const mOb = obligations.find(
-              (o) =>
-                (o.event_id === 2 ||
-                  o.event?.key === "ipl" ||
-                  o.payment_events?.key === "ipl") &&
-                o.month_index === m,
-            );
-            if (!mOb) return "upcoming";
-            return mOb.status === true
-              ? "paid"
-              : getUnpaidMark(currentYear.value, m);
-          }),
-          thr: thrMark,
+          unit: row.unit_code || unitCode.value || "N/A",
+          owner: row.owner_name || displayName.value || "Resident",
+          months: [
+            { status: row.month_1, month: 1 },
+            { status: row.month_2, month: 2 },
+            { status: row.month_3, month: 3 },
+            { status: row.month_4, month: 4 },
+            { status: row.month_5, month: 5 },
+            { status: row.month_6, month: 6 },
+            { status: row.month_7, month: 7 },
+            { status: row.month_8, month: 8 },
+            { status: row.month_9, month: 9 },
+            { status: row.month_10, month: 10 },
+            { status: row.month_11, month: 11 },
+            { status: row.month_12, month: 12 },
+          ].map((m) =>
+            m.status ? "paid" : getUnpaidMark(currentYear.value, m.month),
+          ),
+          thr: row.thr_status ? "paid" : getThrMark(currentYear.value),
         },
       ];
     }

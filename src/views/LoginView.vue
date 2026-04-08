@@ -33,11 +33,11 @@
             class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"
           ></div>
         </div>
-        <div class="relative z-10 p-8 md:p-12 text-white max-w-lg">
+        <div class="relative z-10 p-8 md:p-12 text-white max-w-lg flex flex-col items-center object-center md:items-start text-center md:text-left">
           <img
-            src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png"
+            src="/icons/Logo_Permata_Tajur_Townhouse-alpha12.png"
             alt="Permata Tajur Logo"
-            class="mb-6 md:mb-8 drop-shadow-2xl w-[clamp(12rem,18vw,24rem)]"
+            class="mb-8 md:mb-10 drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)] w-100 md:w-80 lg:w-[28rem] transition-transform duration-700 hover:scale-105 object-center"
             style="opacity: 1"
           />
           <h1
@@ -47,7 +47,7 @@
             <span
               class="font-bold opacity-90 block mt-2 text-[clamp(1.125rem,2vw,1.5rem)]"
               ><span class="text-[clamp(0.875rem,1.5vw,1.125rem)]">by</span>
-              <span style="color: black">Permata Tajur Townhouse</span></span
+              <span style="color: black"> Permata Tajur Townhouse</span></span
             >
           </h1>
           <p
@@ -76,12 +76,12 @@
         <div
           class="pt-12 md:pt-16 pb-6 px-8 md:px-12 flex flex-col md:items-start items-center"
         >
-          <div class="md:hidden mb-6">
+          <div class="md:hidden flex justify-center w-full">
             <img
-              src="/icons/Logo_Permata_Tajur_Townhouse-alpha1.png"
+              src="/icons/Logo_Permata_Tajur_Townhouse-alpha12.png"
               alt="Tajur Logo"
-              class="w-20"
-              style="height: 100; width: 100%; opacity: 1"
+              class="w-60 h-auto drop-shadow-xl transition-transform duration-500 active:scale-95"
+              style="opacity: 1"
             />
           </div>
           <h2
@@ -134,7 +134,6 @@
               <div
                 class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400"
               >
-                <span class="material-symbols-outlined">expand_more</span>
               </div>
             </div>
           </div>
@@ -266,15 +265,22 @@
     </div>
 
     <!-- Demo Not Available Modal -->
-    <div
-      v-if="showGuestModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      @click="showGuestModal = false"
-    >
+    <teleport to="body">
       <div
-        class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative"
-        @click.stop
+        v-if="showGuestModal"
+        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       >
+        <!-- Backdrop (Edge-to-edge background) -->
+        <div 
+          class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+          @click="showGuestModal = false"
+        ></div>
+
+        <!-- Modal Content -->
+        <div
+          class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative overflow-hidden"
+          @click.stop
+        >
         <div class="flex items-center gap-4 mb-4">
           <div
             class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-3 rounded-full flex items-center justify-center"
@@ -304,7 +310,8 @@
         </div>
       </div>
     </div>
-  </div>
+  </teleport>
+</div>
 </template>
 
 <script setup>

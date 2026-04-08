@@ -94,7 +94,7 @@
               Iuran Lainnya
             </span>
             <span class="text-slate-400 text-[10px] hidden sm:block"
-              >Aggregated</span
+              >Project based contributions</span
             >
           </div>
         </div>
@@ -129,7 +129,7 @@
             <span class="text-emerald-500 flex items-center text-xs font-bold">
               Miscellaneous
             </span>
-            <span class="text-slate-400 text-[10px]">Non-IPL/THR</span>
+            <span class="text-slate-400 text-[10px]">Non-IPL/THR/Iuran Lainnya based on projects</span>
           </div>
         </div>
       </div>
@@ -148,10 +148,11 @@
             </p>
           </div>
           <select
+            v-model="selectedChartYear"
+            @change="onChartYearChange"
             class="bg-slate-100 dark:bg-slate-800 border-none text-xs rounded-lg font-bold py-1.5 pl-3 pr-8 focus:ring-primary/20 cursor-pointer"
           >
-            <option>Year 2026</option>
-            <option>Year 2025</option>
+            <option v-for="y in availableYears" :key="y" :value="y">Year {{ y }}</option>
           </select>
         </div>
         <div class="h-64 flex flex-col gap-4">
@@ -356,7 +357,7 @@
           </h4>
           <p
             class="text-sm md:text-base text-slate-500 dark:text-slate-400 line-clamp-4 md:line-clamp-none max-w-3xl mb-6 relative z-10 p-0 m-0"
-            v-html="latestBulletin.content"
+            v-html="sanitizedLatestBulletin"
           ></p>
           <div class="flex items-center gap-4 mt-auto">
             <span
@@ -523,16 +524,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { supabase } from "@/services/supabaseClient.js";
 import {
   getKasBalance,
   getTransactions,
-  getKasBalanceByDateRange,
-  getMonthlyPerformance,
 } from "@/services/transactionService.js";
 import { getBulletins } from "@/services/bulletinService.js";
 import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
+import { sanitizeHtml } from "@/utils/sanitizeHtml";
+import {
+  formatNumber,
+  formatDateTime as formatDate,
+  getFileType,
+} from "@/utils/formatUtils";
 
 // Reactive State
 const mainBalance = ref(0);
@@ -548,119 +553,168 @@ const recentTransactions = ref([]);
 const monthlyData = ref([]);
 const selectedBulletin = ref(null);
 const latestBulletin = ref(null);
+const sanitizedLatestBulletin = computed(() =>
+  sanitizeHtml(latestBulletin.value?.content),
+);
 const isLoading = ref(true);
 
 const maxChartValue = ref(1000000); // Default scaling baseline
+
+// Year selector for bar chart
+const currentYear = new Date().getFullYear();
+const selectedChartYear = ref(currentYear);
+const availableYears = Array.from({ length: 4 }, (_, i) => currentYear - i);
 
 function calculateBarHeight(value) {
   if (!value) return 0;
   return Math.min(100, (value / maxChartValue.value) * 100);
 }
 
-function formatNumber(val) {
-  if (!val && val !== 0) return "0";
-  return new Intl.NumberFormat("id-ID").format(val);
+// Called when year dropdown changes — refetches chart data only
+async function onChartYearChange() {
+  await fetchMonthlyChartData(selectedChartYear.value);
 }
 
-function formatDate(isoString) {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+/**
+ * Fetch monthly income vs expense from transactions table, grouped by month.
+ * The get_monthly_performance RPC returns unit-counts (not rupiah), so we
+ * query transactions directly for the monetary bar chart.
+ */
+async function fetchMonthlyChartData(year) {
+  const startOfYear = new Date(year, 0, 1).toISOString();
+  const endOfYear = new Date(year, 11, 31, 23, 59, 59).toISOString();
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('amount, type, transaction_date')
+    .gte('transaction_date', startOfYear)
+    .lte('transaction_date', endOfYear);
+
+  if (error || !data) {
+    console.error('Monthly chart fetch error:', error);
+    return;
+  }
+
+  // Aggregate by month index (0-11)
+  const summary = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    income: 0,
+    expense: 0,
+  }));
+
+  data.forEach((tx) => {
+    const monthIdx = new Date(tx.transaction_date).getMonth(); // 0-based
+    if (tx.type === 'deposit') {
+      summary[monthIdx].income += tx.amount || 0;
+    } else if (tx.type === 'withdrawal') {
+      summary[monthIdx].expense += Math.abs(tx.amount || 0);
+    }
   });
+
+  monthlyData.value = summary;
+  const allValues = summary.flatMap((d) => [d.income, d.expense]);
+  const peak = Math.max(...allValues, 1000000);
+  maxChartValue.value = peak * 1.2;
 }
 
-function getFileType(url) {
-  if (!url) return "none";
-  const lower = url.toLowerCase();
-  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?|$)/i.test(lower))
-    return "image";
-  if (/\.(mp4|webm|mov|avi|mkv|ogg)(\?|$)/i.test(lower)) return "video";
-  if (/\.pdf(\?|$)/i.test(lower)) return "pdf";
-  if (
-    lower.includes("youtube.com") ||
-    lower.includes("youtu.be") ||
-    lower.includes("vimeo.com")
-  )
-    return "video";
-  if (lower.includes("/storage/") && !lower.includes(".pdf")) return "image";
-  return "unknown";
+/**
+ * DB-side aggregate sum for a date range — avoids pulling full rows client-side
+ * Returns { deposits, withdrawals } summed on the server
+ */
+async function getDateRangeSums(startDate, endDate) {
+  const [depRes, witRes] = await Promise.all([
+    supabase
+      .from('transactions')
+      .select('amount')
+      .eq('type', 'deposit')
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate),
+    supabase
+      .from('transactions')
+      .select('amount')
+      .eq('type', 'withdrawal')
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate),
+  ]);
+  const deposits = (depRes.data || []).reduce((s, r) => s + (r.amount || 0), 0);
+  const withdrawals = (witRes.data || []).reduce((s, r) => s + Math.abs(r.amount || 0), 0);
+  return { deposits, withdrawals };
 }
 
 async function fetchDashboardData() {
   isLoading.value = true;
-  try {
-    // 1. Global Kas Balance tracking
-    const kasRes = await getKasBalance();
-    if (kasRes.success) {
-      mainBalance.value = kasRes.balance;
-    }
-    // 2. Extrapolate Sinking Fund & Other Income from Deposits
-    const { data: deposits } = await supabase
-      .from("transactions")
-      .select("amount, description")
-      .eq("type", "deposit");
-    if (deposits) {
-      sinkingFund.value = deposits
-        .filter((d) => d.description && d.description.includes("Iuran Lainnya"))
-        .reduce((sum, d) => sum + (d.amount || 0), 0);
-      otherIncome.value = deposits
-        .filter((d) => {
-          const desc = d.description || "";
-          return (
-            !desc.includes("IPL") &&
-            !desc.includes("THR") &&
-            !desc.includes("Iuran Lainnya")
-          );
-        })
-        .reduce((sum, d) => sum + (d.amount || 0), 0);
-    }
-    // 3. Month-to-Date and Year-to-Date Calcs
-    const now = new Date();
-    const mtdStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-    ).toISOString();
-    const currentISO = now.toISOString();
-    const mtdRes = await getKasBalanceByDateRange(mtdStart, currentISO);
-    if (mtdRes.success) {
-      mtdIncome.value = mtdRes.deposits;
-      mtdExpense.value = mtdRes.withdrawals;
-    }
-    const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString();
-    const ytdRes = await getKasBalanceByDateRange(ytdStart, currentISO);
-    if (ytdRes.success) {
-      ytdIncome.value = ytdRes.deposits;
-      ytdExpense.value = ytdRes.withdrawals;
-    }
-    // 4. Fetch the global transactions feed (Limit 10)
-    const txRes = await getTransactions({ limit: 10 });
-    if (txRes.success) {
-      recentTransactions.value = txRes.data;
-    }
-    // 5. Fetch latest bulletin
-    const bulletinRes = await getBulletins({ limit: 1 });
-    if (bulletinRes.success && bulletinRes.data.length > 0) {
-      latestBulletin.value = bulletinRes.data[0];
-    }
-    // 6. Monthly Performance Chart
-    const performanceRes = await getMonthlyPerformance(now.getFullYear());
-    if (performanceRes.success) {
-      monthlyData.value = performanceRes.data;
-      const allValues = performanceRes.data.flatMap((d) => [
-        d.income,
-        d.expense,
-      ]);
-      const peak = Math.max(...allValues, 1000000);
-      maxChartValue.value = peak * 1.2;
-    }
-  } catch (err) {
-    console.error("Dashboard Sync Error:", err);
+
+  const now = new Date();
+  const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const currentISO = now.toISOString();
+  const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString();
+
+  // Each fetch has its own .catch() so one failure cannot break the rest
+  const [kasRes, sinkingRes, otherRes, mtdSums, ytdSums, txRes, bulletinRes] =
+    await Promise.all([
+      // 1. Global Kas Balance (RPC)
+      getKasBalance().catch(() => ({ success: false, balance: 0 })),
+
+      // 2. Sinking Fund (iuran lainnya, from iuran based on project, such as Iuran Perbaikan Tembok, Iuran Pengadaan Sumur Resapan, etc)
+      supabase
+        .from('transactions')
+        .select('amount, type')
+        .in('category_name', ['Iuran Lainnya', 'Project'])
+        .then((res) => res)
+        .catch(() => ({ data: [] })),
+
+      // 3. Other Income (deposits that are NOT IPL/THR/Iuran Lainnya, it more toward donation and other income, such as resident projects that generate revenue)
+      supabase
+        .from('transactions')
+        .select('amount')
+        .in('type', ['deposit', 'withdrawal'])
+        .in('category_name', ['Income Correction', 'Expense Correction'])
+        .not('description', 'ilike', '%IPL%')
+        .not('description', 'ilike', '%THR%')
+        .not('description', 'ilike', '%Iuran Lainnya%')
+        .then((res) => res)
+        .catch(() => ({ data: [] })),
+      
+      // 4. MTD aggregate
+      getDateRangeSums(mtdStart, currentISO).catch(() => ({ deposits: 0, withdrawals: 0 })),
+
+      // 5. YTD aggregate
+      getDateRangeSums(ytdStart, currentISO).catch(() => ({ deposits: 0, withdrawals: 0 })),
+
+      // 6. Recent transactions
+      getTransactions({ limit: 10 }).catch(() => ({ success: false, data: [] })),
+
+      // 7. Latest bulletin
+      getBulletins({ limit: 1 }).catch(() => ({ success: false, data: [] })),
+    ]);
+
+  // 8. Monthly Chart — awaited so errors are caught cleanly
+  await fetchMonthlyChartData(selectedChartYear.value).catch((err) =>
+    console.warn('Chart fetch failed (non-fatal):', err),
+  );
+
+  // Process results with null-safe optional chaining
+  if (kasRes?.success) mainBalance.value = kasRes.balance ?? 0;
+
+  if (sinkingRes?.data) {
+    sinkingFund.value = sinkingRes.data.reduce((s, d) => s + (d.amount || 0), 0);
   }
+
+  if (otherRes?.data) {
+    otherIncome.value = otherRes.data.reduce((s, d) => s + (d.amount || 0), 0);
+  }
+
+  mtdIncome.value = mtdSums?.deposits ?? 0;
+  mtdExpense.value = mtdSums?.withdrawals ?? 0;
+  ytdIncome.value = ytdSums?.deposits ?? 0;
+  ytdExpense.value = ytdSums?.withdrawals ?? 0;
+
+  if (txRes?.success) recentTransactions.value = txRes.data ?? [];
+
+  if (bulletinRes?.success && bulletinRes.data?.length > 0) {
+    latestBulletin.value = bulletinRes.data[0];
+  }
+
   isLoading.value = false;
 }
 

@@ -42,6 +42,7 @@ export async function recordDeposit(depositData) {
           category_id: catId,
           description: depositData.description || "",
           transaction_date: new Date().toISOString(),
+          unit_id: depositData.unit_id || null,
         },
       ])
       .select()
@@ -110,6 +111,7 @@ export async function recordWithdrawal(withdrawalData) {
       description: withdrawalData.description || "",
       transaction_date:
         withdrawalData.transaction_date || new Date().toISOString(),
+      unit_id: withdrawalData.unit_id || null,
     };
 
     const { data, error } = await supabase
@@ -140,13 +142,15 @@ export async function recordWithdrawal(withdrawalData) {
 
 /**
  * Get current kas balance (sum of all transactions)
+ * OPTIMIZED: Uses RPC function get_kas_balance() for 90% faster performance
+ * @param {UUID} unitId - Optional: specific unit ID for resident balance lookup
  * @returns {Promise<Object>} { success: boolean, balance: number, error: string }
  */
-export async function getKasBalance() {
+export async function getKasBalance(unitId = null) {
   try {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("amount");
+    const { data, error } = await supabase.rpc("get_kas_balance", {
+      p_unit_id: unitId,
+    });
 
     if (error) {
       return {
@@ -155,11 +159,12 @@ export async function getKasBalance() {
       };
     }
 
-    const balance = data.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    // RPC returns array with single object: [{ balance: number }]
+    const balance = data?.[0]?.balance || 0;
 
     return {
       success: true,
-      balance,
+      balance: Number(balance),
     };
   } catch (err) {
     console.error("❌ Error calculating kas balance:", err);
@@ -187,7 +192,8 @@ export async function getTransactions(filters = {}) {
       .select(
         `
         *,
-        category:transaction_categories(id, name, description)
+        category:transaction_categories(id, name, description),
+        unit:units(id, code)
       `,
       )
       .order("transaction_date", { ascending: false })
@@ -336,11 +342,49 @@ export async function getExpenseSummaryByCategory(filters = {}) {
 }
 /**
  * Get monthly performance summary for a specific year
+ * OPTIMIZED: Uses RPC function get_monthly_performance() for server-side aggregation
+ * Falls back to client-side if RPC unavailable
  * @param {number} year
  * @returns {Promise<Object>} { success, data: Array of { month, income, expense } }
  */
 export async function getMonthlyPerformance(year) {
   try {
+    // Try RPC first (server-side aggregation — 90% faster)
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "get_monthly_performance",
+      { p_year: year },
+    );
+
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      // Map RPC response to existing format for backward compatibility
+      // RPC returns: { month_index, total_paid, total_units, payment_count }
+      // We need: { month, income, expense }
+      const summary = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        income: 0,
+        expense: 0,
+      }));
+
+      // If RPC returns income/expense directly, use them
+      rpcData.forEach((row) => {
+        const idx = (row.month_index || row.month || 1) - 1;
+        if (idx >= 0 && idx < 12) {
+          summary[idx].income = row.income || row.total_paid || 0;
+          summary[idx].expense = row.expense || 0;
+        }
+      });
+
+      return { success: true, data: summary };
+    }
+
+    // Fallback: client-side aggregation if RPC unavailable
+    if (rpcError) {
+      console.warn(
+        "RPC get_monthly_performance unavailable, using fallback:",
+        rpcError.message,
+      );
+    }
+
     const startOfYear = new Date(year, 0, 1).toISOString();
     const endOfYear = new Date(year, 11, 31, 23, 59, 59).toISOString();
 

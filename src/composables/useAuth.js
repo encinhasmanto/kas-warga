@@ -3,69 +3,93 @@
 //  * Provides reactive session state and auth utilities throughout the app
 //  */
 
-import { ref, computed } from 'vue'
-import { supabase } from '@/services/supabaseClient.js' // Using our new central supabase file
+import { ref, computed } from "vue";
+import { supabase } from "@/services/supabaseClient.js"; // Using our new central supabase file
 
 // 1. Global State
-const session = ref(JSON.parse(sessionStorage.getItem('dw_session') || 'null'))
-const user = ref(null)
-const role = ref(session.value?.role || null)
-const displayName = ref(session.value?.displayName || 'User')
-const unitCode = ref(session.value?.unitCode || null)
-const unitId = ref(null)
+let initialSession = null;
+try {
+  initialSession = JSON.parse(sessionStorage.getItem("dw_session") || "null");
+} catch (err) {
+  console.warn("Invalid session payload, clearing local sessionStorage", err);
+  sessionStorage.removeItem("dw_session");
+  initialSession = null;
+}
+const session = ref(initialSession);
+const user = ref(null);
+const role = ref(session.value?.role || null);
+const displayName = ref(session.value?.displayName || "User");
+const unitCode = ref(session.value?.unitCode || null);
+const unitId = ref(null);
 
 export function useAuth() {
-  
   // 2. Computed Properties (The missing pieces!)
-  const isLoggedIn = computed(() => !!session.value)
-  const isGuest = computed(() => session.value?.isGuest === true)
-  const isSuperAdmin = computed(() => role.value === 'Super Admin' || role.value === 'super_admin')
-  const isAdmin = computed(() => role.value === 'Admin' || role.value === 'admin' || isSuperAdmin.value)
-  const isResident = computed(() => role.value === 'Resident' || role.value === 'resident')
+  const isLoggedIn = computed(() => !!session.value);
+  const isGuest = computed(() => session.value?.isGuest === true);
+  const isSuperAdmin = computed(
+    () => role.value === "Super Admin" || role.value === "super_admin",
+  );
+  const isAdmin = computed(
+    () =>
+      role.value === "Admin" || role.value === "admin" || isSuperAdmin.value,
+  );
+  const isResident = computed(
+    () => role.value === "Resident" || role.value === "resident",
+  );
 
   // 3. Methods
   async function fetchUnitId(code) {
-    if (!code) return
+    if (!code) return;
     const { data, error } = await supabase
-      .from('units')
-      .select('id')
-      .eq('code', code)
-      .single()
-    
-    if (data) unitId.value = data.id
-    if (error) console.warn("Supabase Fetch Error (Unit ID):", error.message)
+      .from("units")
+      .select("id")
+      .eq("code", code)
+      .single();
+
+    if (data) unitId.value = data.id;
+    if (error) console.warn("Supabase Fetch Error (Unit ID):", error.message);
   }
 
   function setSession(newSession) {
     if (!newSession) {
-      logout()
-      return
+      logout();
+      return;
     }
-    session.value = newSession
-    role.value = newSession.role
-    displayName.value = newSession.displayName
-    unitCode.value = newSession.unitCode
-    
-    fetchUnitId(newSession.unitCode) 
-    
-    sessionStorage.setItem('dw_session', JSON.stringify(newSession))
+    session.value = newSession;
+    role.value = newSession.role;
+    displayName.value = newSession.displayName;
+    unitCode.value = newSession.unitCode;
+
+    fetchUnitId(newSession.unitCode);
+
+    sessionStorage.setItem("dw_session", JSON.stringify(newSession));
   }
 
   function logout() {
-    session.value = null
-    user.value = null
-    role.value = null
-    displayName.value = 'User'
-    unitCode.value = null
-    unitId.value = null
-    sessionStorage.removeItem('dw_session')
-    window.location.href = '/' // Safe redirect to login
+    session.value = null;
+    user.value = null;
+    role.value = null;
+    displayName.value = "User";
+    unitCode.value = null;
+    unitId.value = null;
+    sessionStorage.removeItem("dw_session");
+    window.location.href = "/"; // Safe redirect to login
   }
 
   // 4. Return EVERYTHING (This fixes the router crash!)
   return {
-    session, user, role, displayName, unitCode, unitId,
-    isLoggedIn, isGuest, isSuperAdmin, isAdmin, isResident,
-    setSession, logout
-  }
+    session,
+    user,
+    role,
+    displayName,
+    unitCode,
+    unitId,
+    isLoggedIn,
+    isGuest,
+    isSuperAdmin,
+    isAdmin,
+    isResident,
+    setSession,
+    logout,
+  };
 }

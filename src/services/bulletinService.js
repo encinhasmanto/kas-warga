@@ -3,7 +3,7 @@
  * Handles CRUD operations for community announcements and bulletins
  */
 
-import { supabase, getCurrentSession } from './supabaseClient.js';
+import { supabase, getCurrentSession } from "./supabaseClient.js";
 
 /**
  * Upload an image file to Supabase Storage (bulletin-assets bucket)
@@ -11,18 +11,18 @@ import { supabase, getCurrentSession } from './supabaseClient.js';
  * @returns {Promise<string>} The public URL of the uploaded image
  */
 export async function uploadBulletinImage(file) {
-  const fileExt = file.name.split('.').pop();
+  const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
   const filePath = `bulletins/${fileName}`;
 
   const { error: uploadError } = await supabase.storage
-    .from('bulletin-assets')
+    .from("bulletin-assets")
     .upload(filePath, file);
 
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage
-    .from('bulletin-assets')
+    .from("bulletin-assets")
     .getPublicUrl(filePath);
 
   return data.publicUrl;
@@ -36,13 +36,16 @@ export async function uploadBulletinImage(file) {
 export async function getBulletins(options = {}) {
   try {
     let query = supabase
-      .from('bulletins')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("bulletins")
+      // Select only required fields for list views to reduce payload
+      .select(
+        "id, title, category, content, content_url, is_published, created_at",
+      )
+      .order("created_at", { ascending: false });
 
-    // Filter out unpublished for non-admins if desired, 
+    // Filter out unpublished for non-admins if desired,
     // but the SQL RLS simplifies it mostly.
-    query = query.eq('is_published', true);
+    query = query.eq("is_published", true);
 
     const limit = options.limit || 50;
     const offset = options.offset || 0;
@@ -54,7 +57,7 @@ export async function getBulletins(options = {}) {
 
     return { success: true, data };
   } catch (err) {
-    console.error('❌ Error fetching bulletins:', err);
+    console.error("❌ Error fetching bulletins:", err);
     return { success: false, error: err.message };
   }
 }
@@ -67,7 +70,7 @@ export async function getBulletins(options = {}) {
 export async function createBulletin(payload) {
   try {
     const session = getCurrentSession();
-    if (session.type !== 'admin' && session.type !== 'superadmin') {
+    if (session.type !== "admin" && session.type !== "superadmin") {
       throw new Error("Unauthorized: Only Admins can create bulletins.");
     }
 
@@ -75,25 +78,27 @@ export async function createBulletin(payload) {
     // so we don't strictly need to inject it, but we can from the session if needed.
 
     const { data, error } = await supabase
-      .from('bulletins')
-      .insert([{
-        title: payload.title,
-        content: payload.content,
-        category: payload.category || 'General',
-        is_published: payload.is_published !== false,
-        // image_url: payload.image_url || null,
-        // video_url: payload.video_url || null,
-        content_url: payload.content_url || null,
-        author_id: null  // Custom auth IDs are not valid auth.users UUIDs — column is nullable
-      }])
+      .from("bulletins")
+      .insert([
+        {
+          title: payload.title,
+          content: payload.content,
+          category: payload.category || "General",
+          is_published: payload.is_published !== false,
+          // image_url: payload.image_url || null,
+          // video_url: payload.video_url || null,
+          content_url: payload.content_url || null,
+          author_id: null, // Custom auth IDs are not valid auth.users UUIDs — column is nullable
+        },
+      ])
       .select()
       .single();
 
     if (error) throw error;
-    
+
     return { success: true, data };
   } catch (err) {
-    console.error('❌ Error creating bulletin:', err);
+    console.error("❌ Error creating bulletin:", err);
     return { success: false, error: err.message };
   }
 }
@@ -107,16 +112,16 @@ export async function createBulletin(payload) {
 export async function updateBulletin(id, updates) {
   try {
     const session = getCurrentSession();
-    if (session.type !== 'admin' && session.type !== 'superadmin') {
+    if (session.type !== "admin" && session.type !== "superadmin") {
       throw new Error("Unauthorized: Only Admins can update bulletins.");
     }
 
     // The 'updated_at' column is not in the schema, removing append
 
     const { data, error } = await supabase
-      .from('bulletins')
+      .from("bulletins")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -124,7 +129,7 @@ export async function updateBulletin(id, updates) {
 
     return { success: true, data };
   } catch (err) {
-    console.error('❌ Error updating bulletin:', err);
+    console.error("❌ Error updating bulletin:", err);
     return { success: false, error: err.message };
   }
 }
@@ -137,20 +142,17 @@ export async function updateBulletin(id, updates) {
 export async function deleteBulletin(id) {
   try {
     const session = getCurrentSession();
-    if (session.type !== 'admin' && session.type !== 'superadmin') {
+    if (session.type !== "admin" && session.type !== "superadmin") {
       throw new Error("Unauthorized: Only Admins can delete bulletins.");
     }
 
-    const { error } = await supabase
-      .from('bulletins')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("bulletins").delete().eq("id", id);
 
     if (error) throw error;
 
     return { success: true };
   } catch (err) {
-    console.error('❌ Error deleting bulletin:', err);
+    console.error("❌ Error deleting bulletin:", err);
     return { success: false, error: err.message };
   }
 }

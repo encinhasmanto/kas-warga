@@ -497,7 +497,7 @@
               </h4>
               <p
                 class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-6 m-0 p-0"
-                v-html="latestBulletin.content"
+                v-html="sanitizedLatestBulletin"
               ></p>
               <div
                 class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between"
@@ -589,6 +589,13 @@ import { getKasBalance } from "@/services/transactionService.js";
 import { getBulletins } from "@/services/bulletinService.js";
 import PaymentModal from "@/components/modals/PaymentModal.vue";
 import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
+import { sanitizeHtml } from "@/utils/sanitizeHtml";
+import {
+  formatNumber,
+  formatDate,
+  getFileType,
+  MONTH_NAMES,
+} from "@/utils/formatUtils";
 
 const { displayName, unitCode, session, isAdmin, unitId } = useAuth();
 
@@ -605,6 +612,9 @@ const nextDueAmount = ref(0);
 const recentTransactions = ref([]);
 const paymentMonths = ref(Array(12).fill(null));
 const latestBulletin = ref(null);
+const sanitizedLatestBulletin = computed(() =>
+  sanitizeHtml(latestBulletin.value?.content),
+);
 const selectedBulletin = ref(null);
 const isLoading = ref(true);
 const hasLoaded = ref(false);
@@ -613,25 +623,7 @@ const nextDueMonthLabel = ref("");
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
-const monthNames = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-function formatNumber(val) {
-  if (!val && val !== 0) return "0";
-  return new Intl.NumberFormat("id-ID").format(val);
-}
+const monthNames = MONTH_NAMES;
 
 const residentSubscriptions = [];
 
@@ -647,95 +639,142 @@ function getResidentUnitFilter() {
   return uId ? `unit_id=eq.${uId}` : undefined;
 }
 
+function getUnpaidMark(obYear, obMonth) {
+  const today = new Date();
+  const currentY = today.getFullYear();
+  const currentM = today.getMonth() + 1;
+  if (obYear > currentY || (obYear === currentY && obMonth >= currentM))
+    return "upcoming";
+  const monthsDiff = currentY * 12 + currentM - (obYear * 12 + obMonth);
+  if (monthsDiff < 2 && monthsDiff > 0) return "late";
+  return "unpaid";
+}
+
 async function fetchResidentDashboardData(forceLoading = false) {
   if (forceLoading || !hasLoaded.value) {
     isLoading.value = true;
   }
 
   try {
-    const kasRes = await getKasBalance();
-    if (kasRes.success) {
+    const uId = session.value?.unit_id || session.value?.id;
+
+    // OPTIMIZED: Parallel fetch for independent calls with error guards
+    const parallelPromises = [
+      // 1. Global Kas Balance (RPC — fast)
+      getKasBalance().catch(() => ({ success: false, balance: 0 })),
+      // 2. Sinking Fund — amount only
+      supabase
+        .from("transactions")
+        .select("amount")
+        .eq("type", "deposit")
+        .ilike("description", "%Iuran Lainnya%")
+        .then((res) => res)
+        .catch(() => ({ data: [] })),
+      // 3. Latest bulletin
+      getBulletins({ limit: 1 }).catch(() => ({ success: false, data: [] })),
+    ];
+
+    // 4. Unit-specific calls (guarded)
+    if (uId && unitCode.value) {
+      parallelPromises.push(
+        // History for recent transactions
+        getUnitFullHistory(uId, unitCode.value).catch(() => ({ success: false, data: [] })),
+        // RPC Tracker for payment status display (same as TrackerView)
+        supabase.rpc("get_resident_tracker", {
+          p_unit_id: uId,
+          p_year: currentYear,
+        })
+        .then((res) => res)
+        .catch(() => ({ data: [] })),
+        // Payment status for next-due calculation
+        getUnitPaymentStatus(uId).catch(() => ({ success: false, data: { obligations: [] } })),
+      );
+    }
+
+    const results = await Promise.all(parallelPromises);
+
+    // Process global results with null safety
+    const [kasRes, sinkingRes, bulletinRes] = results;
+
+    if (kasRes?.success) {
       mainBalance.value = kasRes.balance;
     }
 
-    const { data: allDeposits } = await supabase
-      .from("transactions")
-      .select("amount, description")
-      .eq("type", "deposit");
-
-    if (allDeposits) {
-      sinkingFund.value = allDeposits
-        .filter((d) => d.description && d.description.includes("Iuran Lainnya"))
-        .reduce((sum, d) => sum + (d.amount || 0), 0);
+    if (sinkingRes?.data) {
+      sinkingFund.value = sinkingRes.data.reduce(
+        (sum, d) => sum + (d.amount || 0),
+        0,
+      );
     }
 
-    const uId = session.value?.unit_id || session.value?.id;
-    if (uId && unitCode.value) {
-      const { data: historyData } = await getUnitFullHistory(
-        uId,
-        unitCode.value,
-      );
-      if (historyData) {
-        recentTransactions.value = historyData.slice(0, 10).map((p) => ({
-          id: p.id,
-          date: new Date(p.date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "2-digit",
-            year: "numeric",
-          }),
-          description: p.description,
-          category: p.category_name,
-          amount: Math.abs(p.amount),
-          type: p.type,
-          method: p.method,
-        }));
+    if (bulletinRes?.success && bulletinRes.data?.length > 0) {
+      latestBulletin.value = bulletinRes.data[0];
+    }
+
+    // Process unit-specific results
+    if (uId && unitCode.value && results.length > 3) {
+      const historyResult = results[3];
+      const trackerResult = results[4];
+      const statusResult = results[5];
+
+      // Recent transactions from history
+      if (historyResult?.success && historyResult.data) {
+        recentTransactions.value = historyResult.data
+          .slice(0, 10)
+          .map((p) => ({
+            id: p.id,
+            date: new Date(p.date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "2-digit",
+              year: "numeric",
+            }),
+            description: p.description,
+            category: p.category_name,
+            amount: Math.abs(p.amount),
+            type: p.type,
+            method: p.method,
+          }));
       }
 
-      const { data: statusData } = await getUnitPaymentStatus(uId);
-      if (statusData && statusData.obligations) {
-        nextDueAmount.value = statusData.current_due_total || 0;
+      // OPTIMIZED: Use RPC tracker for payment month display
+      if (trackerResult?.data && trackerResult.data.length > 0) {
+        const row = trackerResult.data[0];
+        const months = [
+          { status: row.month_1, month: 1 },
+          { status: row.month_2, month: 2 },
+          { status: row.month_3, month: 3 },
+          { status: row.month_4, month: 4 },
+          { status: row.month_5, month: 5 },
+          { status: row.month_6, month: 6 },
+          { status: row.month_7, month: 7 },
+          { status: row.month_8, month: 8 },
+          { status: row.month_9, month: 9 },
+          { status: row.month_10, month: 10 },
+          { status: row.month_11, month: 11 },
+          { status: row.month_12, month: 12 },
+        ].map((m) => ({
+          uiStatus: m.status
+            ? "paid"
+            : getUnpaidMark(currentYear, m.month),
+        }));
+        paymentMonths.value = months;
+      }
 
-        const iplObligations = statusData.obligations.filter(
+      // Use payment status for next-due calculation
+      if (statusResult?.data?.obligations) {
+        nextDueAmount.value = statusResult.data.current_due_total || 0;
+
+        const iplObligations = statusResult.data.obligations.filter(
           (o) =>
             o.year === currentYear &&
             (o.event_key?.toLowerCase() === "ipl" || o.event_id === 2),
         );
-        const months = Array(12).fill(null);
-
-        iplObligations.forEach((o) => {
-          if (o.month >= 1 && o.month <= 12) {
-            let uiStatus = "upcoming";
-            if (o.status) {
-              uiStatus = "paid";
-            } else {
-              const today = new Date();
-              const currentY = today.getFullYear();
-              const currentM = today.getMonth() + 1;
-              if (
-                o.year > currentY ||
-                (o.year === currentY && o.month >= currentM)
-              ) {
-                uiStatus = "upcoming";
-              } else {
-                const monthsDiff =
-                  currentY * 12 + currentM - (o.year * 12 + o.month);
-                uiStatus = monthsDiff < 2 && monthsDiff > 0 ? "late" : "unpaid";
-              }
-            }
-
-            months[o.month - 1] = {
-              status: o.status,
-              uiStatus: uiStatus,
-              amount_due: o.amount_due,
-              amount_remaining: o.amount_remaining,
-            };
-          }
-        });
-        paymentMonths.value = months;
 
         const nextObligation = iplObligations
           .filter((o) => !o.status)
-          .sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month))[0];
+          .sort(
+            (a, b) => a.year * 12 + a.month - (b.year * 12 + b.month),
+          )[0];
 
         if (nextObligation) {
           nextDueMonthLabel.value = `${monthNames[nextObligation.month - 1]} ${nextObligation.year}`;
@@ -743,11 +782,6 @@ async function fetchResidentDashboardData(forceLoading = false) {
           nextDueMonthLabel.value = "No Pending Due";
         }
       }
-    }
-
-    const bulletinRes = await getBulletins({ limit: 1 });
-    if (bulletinRes.success && bulletinRes.data.length > 0) {
-      latestBulletin.value = bulletinRes.data[0];
     }
   } catch (err) {
     console.error("Dashboard Sync Error:", err);
@@ -826,32 +860,6 @@ onUnmounted(() => {
     if (channel) supabase.removeChannel(channel);
   });
 });
-
-function formatDate(isoString) {
-  if (!isoString) return "";
-  return new Date(isoString).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function getFileType(url) {
-  if (!url) return "none";
-  const lower = url.toLowerCase();
-  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?|$)/i.test(lower))
-    return "image";
-  if (/\.(mp4|webm|mov|avi|mkv|ogg)(\?|$)/i.test(lower)) return "video";
-  if (/\.pdf(\?|$)/i.test(lower)) return "pdf";
-  if (
-    lower.includes("youtube.com") ||
-    lower.includes("youtu.be") ||
-    lower.includes("vimeo.com")
-  )
-    return "video";
-  if (lower.includes("/storage/") && !lower.includes(".pdf")) return "image";
-  return "unknown";
-}
 
 const openSupport = () => {
   window.open("https://wa.me/6281234967582", "_blank");

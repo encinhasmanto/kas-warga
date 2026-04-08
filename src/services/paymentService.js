@@ -237,10 +237,11 @@ export async function getUnitFullHistory(unitId, unitCode) {
       .select('*, event:payment_events(display_name, key)')
       .eq("unit_id", unitId);
     
-    // 2. Fetch all transactions (Income and Expenses) and their categories
+    // 2. Fetch relevant transactions (Global Expenses OR Unit-specific Income)
     const { data: t, error: tErr } = await supabase
       .from("transactions")
-      .select('*, category:transaction_categories(name)');
+      .select("*, category:transaction_categories(name)")
+      .or(`type.eq.withdrawal,unit_id.eq.${unitId}`);
 
     if (ptErr || tErr) {
         return { success: false, error: ptErr?.message || tErr?.message };
@@ -265,12 +266,10 @@ export async function getUnitFullHistory(unitId, unitCode) {
             const isCorrection = (item.category?.name || '').toLowerCase().includes('correction');
             if (isCorrection) return false; // HIDE corrections for residents
             
-            if (item.type === 'withdrawal') return true; // SHOW all community expenses
-            
+            if (item.type === "withdrawal") return true; // SHOW all community expenses
+
             // For Income (deposits), only show if it belongs to THIS unit
-            const desc = item.description || '';
-            const belongsToUnit = new RegExp(`\\b${unitCode}\\b`, 'i').test(desc);
-            return item.type === 'deposit' && belongsToUnit;
+            return item.type === "deposit" && item.unit_id === unitId;
           })
           .map(item => {
             const desc = item.description || '';

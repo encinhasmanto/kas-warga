@@ -5,8 +5,8 @@ const ASSETS = [
   "/style.css",
   "/script.js",
   "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/LogoPermataTajurTownhouse-aplha192.png",
+  "/icons/LogoPermataTajurTownhouse-aplha512.png"
 ];
 
 // Install event
