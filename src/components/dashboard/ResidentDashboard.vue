@@ -663,11 +663,10 @@ async function fetchResidentDashboardData(forceLoading = false) {
       // 1. Global Kas Balance (RPC — fast)
       getKasBalance().catch(() => ({ success: false, balance: 0 })),
       // 2. Sinking Fund — amount only
-      supabase
-        .from("transactions")
-        .select("amount")
-        .eq("type", "deposit")
-        .ilike("description", "%Iuran Lainnya%")
+          supabase
+        .from('transactions')
+        .select('amount, type')
+        .in('category_name', ['Iuran Lainnya', 'Project'])
         .then((res) => res)
         .catch(() => ({ data: [] })),
       // 3. Latest bulletin
