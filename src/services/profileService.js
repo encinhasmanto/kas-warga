@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "./supabaseClient.js";
+import { auditService } from "./auditService.js";
 
 /**
  * Fetch profile data by ID and type
@@ -53,6 +54,7 @@ export async function updateUnitPin(unitId, oldPin, newPin) {
     if (error) throw error;
     
     if (data) {
+      await auditService.logAction('CHANGE_PIN', { type: 'units', id: unitId });
       return { success: true };
     } else {
       return { success: false, error: "Incorrect current PIN" };
@@ -106,6 +108,9 @@ export async function uploadAvatar(file, id, type) {
       .eq("id", id);
 
     if (updateError) throw updateError;
+
+    // Log the audit action
+    await auditService.logAction('UPLOAD_AVATAR', { type: table, id: id }, { filename: fileName });
 
     // 6. Cleanup: Delete OLD file if it exists and is from our bucket
     if (current?.avatar_url && current.avatar_url.includes("/avatar/")) {

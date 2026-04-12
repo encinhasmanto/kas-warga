@@ -3,7 +3,9 @@
  * Handles recording deposits/withdrawals and managing kas (balance) with categorized expenses
  */
 
-import { supabase, getCurrentSession } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
+import { useAuthStore } from "@/stores/authStore";
+import { auditService } from "./auditService";
 
 /**
  * Record a deposit (kas masuk - uang pemasukan)
@@ -17,11 +19,11 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
 
 export async function recordDeposit(depositData) {
   try {
-    const session = getCurrentSession();
-    if (!session || !session.isSuperAdmin) {
+    const authStore = useAuthStore();
+    if (!authStore.isLoggedIn || !authStore.isSuperAdmin) {
       console.warn("❌ Permission Denied: User is not a Super Admin", {
-        role: session?.role,
-        isSuperAdmin: session?.isSuperAdmin,
+        role: authStore.role,
+        isSuperAdmin: authStore.isSuperAdmin,
       });
       return { success: false, error: "Only Super Admins can record deposits" };
     }
@@ -50,6 +52,13 @@ export async function recordDeposit(depositData) {
 
     if (txErr) throw txErr;
 
+    // Log the audit action
+    await auditService.logAction('RECORD_DEPOSIT', { type: 'transactions', id: tx.id }, {
+      amount: depositData.amount,
+      unit_id: depositData.unit_id,
+      description: depositData.description
+    });
+
     // Success
     console.log("✅ Deposit recorded:", depositData.amount);
     return {
@@ -77,11 +86,11 @@ export async function recordDeposit(depositData) {
  */
 export async function recordWithdrawal(withdrawalData) {
   try {
-    const session = getCurrentSession();
-    if (!session || !session.isSuperAdmin) {
+    const authStore = useAuthStore();
+    if (!authStore.isLoggedIn || !authStore.isSuperAdmin) {
       console.warn("❌ Permission Denied: User is not a Super Admin", {
-        role: session?.role,
-        isSuperAdmin: session?.isSuperAdmin,
+        role: authStore.role,
+        isSuperAdmin: authStore.isSuperAdmin,
       });
       return {
         success: false,
@@ -125,6 +134,13 @@ export async function recordWithdrawal(withdrawalData) {
         error: error.message,
       };
     }
+
+    // Log the audit action
+    await auditService.logAction('RECORD_WITHDRAWAL', { type: 'transactions', id: data[0].id }, {
+      amount: withdrawalData.amount,
+      recipient: withdrawalData.recipient,
+      description: withdrawalData.description
+    });
 
     console.log("✅ Withdrawal recorded:", withdrawalData.amount);
     return {

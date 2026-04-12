@@ -321,10 +321,11 @@ import {
   authenticateResident,
   authenticateAdmin,
 } from "@/services/authService.js";
-import { useAuth } from "@/composables/useAuth.js";
+import { useAuthStore } from "@/stores/authStore";
+import { auditService } from "@/services/auditService";
 
 const router = useRouter();
-const { setSession } = useAuth();
+const authStore = useAuthStore();
 
 const selectedUnit = ref("");
 const adminUsername = ref("");
@@ -395,20 +396,22 @@ async function handleLogin() {
         role = "Admin";
       }
 
-      // Save session
-      const session = {
+      // Save session using Pinia store
+      authStore.setSession({
         type: selectedUnit.value === "Admin" ? "admin" : "resident",
         id: result.data.id,
         unitCode: selectedUnit.value !== "Admin" ? selectedUnit.value : null,
         username: result.data.username || null,
-        displayName:
-          result.data.name || result.data.username || selectedUnit.value,
+        displayName: result.data.name || result.data.username || selectedUnit.value,
         avatarUrl: result.data.avatar_url,
         role,
         isGuest: false,
-      };
-      setSession(session);
+      });
 
+      // Log the login action
+      await auditService.logAction('LOGIN', { type: selectedUnit.value === "Admin" ? 'admins' : 'units', id: result.data.id });
+
+      // Navigate
       router.push({ name: "dashboard" });
     } else {
       errorMsg.value = result.error || "Login failed. Check unit and PIN.";

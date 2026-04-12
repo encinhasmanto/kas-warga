@@ -125,10 +125,25 @@
           
           
           <div class="hidden lg:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-3"></div>
-          <div class="hidden lg:block text-right">
+          <div class="hidden lg:text-right lg:block">
             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unit Status</p>
-            <p class="text-[11px] font-semibold text-emerald-500 flex items-center justify-end gap-1">
-              <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Active
+            <p 
+              class="text-[11px] font-semibold flex items-center justify-end gap-1"
+              :class="{
+                'text-emerald-500': systemStore?.status === 'connected',
+                'text-amber-500': systemStore?.status === 'limited',
+                'text-rose-500': systemStore?.status === 'offline',
+              }"
+            >
+              <span 
+                class="w-1.5 h-1.5 rounded-full"
+                :class="{
+                  'bg-emerald-500 animate-pulse': systemStore?.status === 'connected',
+                  'bg-amber-500': systemStore?.status === 'limited',
+                  'bg-rose-500 animate-ping': systemStore?.status === 'offline',
+                }"
+              ></span> 
+              {{ systemStore?.status === 'connected' ? 'Active' : systemStore?.status === 'limited' ? 'Limited' : 'Offline' }}
             </p>
           </div>
         </div>
@@ -188,17 +203,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth.js'
+import { useSystemStore } from '@/stores/systemStore'
 import { fetchInitialNotifications, subscribeToRealtimeNotifications } from '@/services/notificationService.js'
 import { subscribeToProfileChanges } from '@/services/profileService.js'
 
 const router = useRouter()
 const route = useRoute()
 const { session, logout, avatarUrl } = useAuth()
+const systemStore = useSystemStore()
 
-const AR_activeIcon = (name) => route.name === name ? "'FILL' 1" : "'FILL' 0"
+const AR_activeIcon = (name) => route?.name === name ? "'FILL' 1" : "'FILL' 0"
 
 const navItems = [
   { name: 'dashboard', icon: 'dashboard', label: 'Dashboard' },

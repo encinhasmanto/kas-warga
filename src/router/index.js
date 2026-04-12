@@ -38,7 +38,19 @@ const router = createRouter({
           path: 'transactions',
           name: 'transactions',
           component: () => import('@/views/ManageTransactionsView.vue'),
-          meta: { requiresAuth: true, requiresSuperAdmin: true }
+          meta: { requiresAuth: true, role: 'admin' }
+        },
+        {
+          path: 'units',
+          name: 'manage-units',
+          component: () => import('@/views/ManageUnitsView.vue'),
+          meta: { requiresAuth: true, role: 'admin' }
+        },
+        {
+          path: 'audit-logs',
+          name: 'audit-logs',
+          component: () => import('@/views/AuditLogsView.vue'),
+          meta: { requiresAuth: true, role: 'super_admin' }
         },
         {
           path: 'correction',

@@ -4,6 +4,7 @@
  */
 
 import { supabase, getCurrentSession } from "./supabaseClient.js";
+import { auditService } from "./auditService.js";
 
 /**
  * Upload an image file to Supabase Storage (bulletin-assets bucket)
@@ -96,6 +97,9 @@ export async function createBulletin(payload) {
 
     if (error) throw error;
 
+    // Log the audit action
+    await auditService.logAction('CREATE_BULLETIN', { type: 'bulletins', id: data.id });
+
     return { success: true, data };
   } catch (err) {
     console.error("❌ Error creating bulletin:", err);
@@ -127,6 +131,9 @@ export async function updateBulletin(id, updates) {
 
     if (error) throw error;
 
+    // Log the audit action
+    await auditService.logAction('UPDATE_BULLETIN', { type: 'bulletins', id: id });
+
     return { success: true, data };
   } catch (err) {
     console.error("❌ Error updating bulletin:", err);
@@ -149,6 +156,9 @@ export async function deleteBulletin(id) {
     const { error } = await supabase.from("bulletins").delete().eq("id", id);
 
     if (error) throw error;
+
+    // Log the audit action
+    await auditService.logAction('DELETE_BULLETIN', { type: 'bulletins', id: id });
 
     return { success: true };
   } catch (err) {

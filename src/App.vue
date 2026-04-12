@@ -1,9 +1,13 @@
 <template>
-  <router-view />
+  <GlobalErrorBoundary>
+    <router-view />
+    <MaintenanceOverlay />
+  </GlobalErrorBoundary>
 </template>
 
 <script setup>
-// App root — just renders the current route's view
+import GlobalErrorBoundary from '@/components/common/GlobalErrorBoundary.vue';
+import MaintenanceOverlay from '@/components/common/MaintenanceOverlay.vue';
 </script>
 
 <style>

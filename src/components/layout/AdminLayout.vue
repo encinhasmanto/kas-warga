@@ -253,12 +253,22 @@
               Server Status
             </p>
             <p
-              class="text-[11px] font-semibold text-emerald-500 flex items-center justify-end gap-1"
+              class="text-[11px] font-semibold flex items-center justify-end gap-1"
+              :class="{
+                'text-emerald-500': systemStore?.status === 'connected',
+                'text-amber-500': systemStore?.status === 'limited',
+                'text-rose-500': systemStore?.status === 'offline',
+              }"
             >
               <span
-                class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
+                class="w-1.5 h-1.5 rounded-full"
+                :class="{
+                  'bg-emerald-500 animate-pulse': systemStore?.status === 'connected',
+                  'bg-amber-500': systemStore?.status === 'limited',
+                  'bg-rose-500 animate-ping': systemStore?.status === 'offline',
+                }"
               ></span>
-              Connected
+              {{ systemStore?.status === 'connected' ? 'Connected' : systemStore?.status === 'limited' ? 'Limited' : 'Offline' }}
             </p>
           </div>
         </div>
@@ -315,6 +325,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "@/composables/useAuth.js";
+import { useSystemStore } from "@/stores/systemStore";
 import {
   fetchInitialNotifications,
   subscribeToRealtimeNotifications,
@@ -324,6 +335,7 @@ import { subscribeToProfileChanges } from "@/services/profileService.js";
 const router = useRouter();
 const route = useRoute();
 const { session, logout, avatarUrl } = useAuth();
+const systemStore = useSystemStore();
 const showMobileMenu = ref(false);
 const showNotifications = ref(false);
 
@@ -423,6 +435,7 @@ const menuSections = computed(() => {
                 icon: "swap_horiz",
                 label: "Input Transaction",
               },
+              { name: "manage-units", icon: "group", label: "Manage Units" },
               { name: "correction", icon: "build", label: "Correction" },
             ]
           : [],
@@ -433,7 +446,11 @@ const menuSections = computed(() => {
         { name: "settings", icon: "settings", label: "System Settings" },
         ...(isSuperAdmin
           ? [
-            
+              {
+                name: "audit-logs",
+                icon: "history_edu",
+                label: "Audit Logs",
+              },
               {
                 name: "special-events",
                 icon: "auto_mode",
