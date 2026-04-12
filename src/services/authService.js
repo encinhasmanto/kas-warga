@@ -20,7 +20,7 @@ export async function authenticateResident(unitCode, pin) {
     // Query units table for matching unit and PIN
     const { data, error } = await supabase
       .from("units")
-      .select("id, code, name, category")
+      .select("id, code, name, category, avatar_url")
       .eq("code", unitCode)
       .eq("pin", pin)
       .single();
@@ -39,6 +39,7 @@ export async function authenticateResident(unitCode, pin) {
       unitCode: data.code,
       displayName: data.name,
       category: data.category,
+      avatarUrl: data.avatar_url,
     });
 
     console.log("✅ Resident authenticated:", data.code);
@@ -66,7 +67,7 @@ export async function authenticateAdmin(username, pin) {
     // Query admins table for matching username and PIN
     const { data, error } = await supabase
       .from("admins")
-      .select("id, username, role, created_at")
+      .select("id, username, role, avatar_url, created_at")
       .eq("username", username)
       .eq("pin", pin)
       .single();
@@ -84,6 +85,7 @@ export async function authenticateAdmin(username, pin) {
       id: data.id,
       username: data.username,
       role: data.role,
+      avatarUrl: data.avatar_url,
     });
 
     console.log("✅ Admin authenticated:", data.username);

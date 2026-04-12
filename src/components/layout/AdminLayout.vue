@@ -15,10 +15,14 @@
       :class="showMobileMenu ? 'translate-x-0 shadow-2xl' : '-translate-x-full'"
     >
       <div class="p-6 flex items-center gap-3">
-        <div
-          class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20"
-        >
-          <span class="material-symbols-outlined">{{
+        <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 overflow-hidden bg-slate-100 dark:bg-slate-800">
+          <img 
+            v-if="session?.avatarUrl"
+            :src="session.avatarUrl" 
+            class="w-full h-full object-cover"
+            alt="Profile"
+          />
+          <span v-else class="material-symbols-outlined">{{
             session?.role === "Super Admin" ? "shield_person" : "person"
           }}</span>
         </div>
@@ -62,26 +66,26 @@
             <span class="text-sm font-medium">{{ item.label }}</span>
           </router-link>
 
-          <!-- Settings button (opens modal instead of navigating) -->
-          <button
+          <router-link
             v-for="item in section.items.filter((i) => i.name === 'settings')"
             :key="item.name"
-            @click="
-              () => {
-                openSettingsModal();
-                showMobileMenu = false;
-              }
-            "
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary"
+            :to="{ name: item.name }"
+            @click="showMobileMenu = false"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group"
+            :class="[
+              $route.name === item.name
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary',
+            ]"
           >
             <span
               class="material-symbols-outlined transition-colors"
-              :style="{ fontVariationSettings: `'FILL' 0` }"
+              :style="{ fontVariationSettings: AR_activeIcon(item.name) }"
             >
               {{ item.icon }}
             </span>
             <span class="text-sm font-medium">{{ item.label }}</span>
-          </button>
+          </router-link>
         </div>
       </nav>
 
@@ -91,9 +95,15 @@
           class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl"
         >
           <div
-            class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden"
+            class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800"
           >
-            <span class="material-symbols-outlined text-primary text-xl"
+            <img 
+              v-if="session?.avatarUrl"
+              :src="session.avatarUrl" 
+              class="w-full h-full object-cover"
+              alt="Profile"
+            />
+            <span v-else class="material-symbols-outlined text-primary text-xl"
               >account_circle</span
             >
           </div>
@@ -297,97 +307,54 @@
       </transition-group>
     </div>
 
-    <!-- System Settings Modal -->
-    <teleport to="body">
-      <div
-        v-if="showSettingsModal"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      >
-        <!-- Backdrop (Edge-to-edge background) -->
-        <div 
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-          @click="showSettingsModal = false"
-        ></div>
-        
-        <!-- Modal Content -->
-        <div
-          class="relative bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl overflow-hidden"
-          @click.stop
-        >
-        <div class="flex items-center gap-4 mb-4">
-          <div
-            class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-3 rounded-full flex items-center justify-center"
-          >
-            <span class="material-symbols-outlined text-3xl">construction</span>
-          </div>
-          <div>
-            <h3
-              class="text-xl font-bold tracking-tight text-slate-900 dark:text-white"
-            >
-              System Settings
-            </h3>
-            <p class="text-xs text-slate-500 font-medium">Coming Soon</p>
-          </div>
-        </div>
-        <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
-          System settings and advanced configuration options are currently under
-          development. Please check back later.
-        </p>
-        <div class="flex justify-end">
-          <button
-            @click="showSettingsModal = false"
-            class="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  </teleport>
+
 </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { clearSession } from "@/services/supabaseClient.js";
+import { useAuth } from "@/composables/useAuth.js";
 import {
   fetchInitialNotifications,
   subscribeToRealtimeNotifications,
 } from "@/services/notificationService.js";
+import { subscribeToProfileChanges } from "@/services/profileService.js";
 
 const router = useRouter();
 const route = useRoute();
+const { session, logout, avatarUrl } = useAuth();
 const showMobileMenu = ref(false);
 const showNotifications = ref(false);
-const showSettingsModal = ref(false);
+
 const searchQuery = ref("");
 
 const notifications = ref([]);
 const hasUnread = ref(false);
 const activeToasts = ref([]);
 let unsubNotifications = null;
+let unsubProfile = null;
 
-const session = computed(() => {
-  const raw = JSON.parse(sessionStorage.getItem("dw_session") || "{}");
-  // Normalize role for super admin
-  let role = raw.role;
-  if (
-    role === "super_admin" ||
-    (raw.username && raw.username.toLowerCase() === "encin")
-  ) {
-    role = "Super Admin";
-  } else if (role === "admin" || raw.type === "admin") {
-    role = "Admin";
-  }
-  return {
-    ...raw,
-    role,
-  };
-});
+// Session handled by useAuth()
 
 // Notifications logic
 onMounted(async () => {
+  // Profile Real-time Subscription
+  if (session.value?.id) {
+    unsubProfile = subscribeToProfileChanges("admin", session.value.id, (newData) => {
+      // Update session ref (triggers reactivity app-wide)
+      if (session.value) {
+        session.value.avatarUrl = newData.avatar_url;
+        avatarUrl.value = newData.avatar_url; // Update the direct ref too
+      }
+      
+      // Persist to storage
+      const raw = JSON.parse(sessionStorage.getItem("dw_session") || "{}");
+      raw.avatarUrl = newData.avatar_url;
+      sessionStorage.setItem("dw_session", JSON.stringify(raw));
+    });
+  }
+
   const res = await fetchInitialNotifications();
   if (res.success) {
     // Unmark initial load as 'new' for badger purposes
@@ -410,6 +377,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (unsubNotifications) unsubNotifications();
+  if (unsubProfile) unsubProfile.unsubscribe();
 });
 
 const toggleNotifications = () => {
@@ -465,6 +433,7 @@ const menuSections = computed(() => {
         { name: "settings", icon: "settings", label: "System Settings" },
         ...(isSuperAdmin
           ? [
+            
               {
                 name: "special-events",
                 icon: "auto_mode",
@@ -477,13 +446,10 @@ const menuSections = computed(() => {
   ].filter((section) => section.items.length > 0); // Hide empty Operations section for Admins
 });
 
-function openSettingsModal() {
-  showSettingsModal.value = true;
-}
+
 
 async function handleLogout() {
-  await router.push({ name: "login" });
-  clearSession();
+  logout();
 }
 </script>
 

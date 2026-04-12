@@ -20,6 +20,7 @@ const user = ref(null);
 const role = ref(session.value?.role || null);
 const displayName = ref(session.value?.displayName || "User");
 const unitCode = ref(session.value?.unitCode || null);
+const avatarUrl = ref(session.value?.avatarUrl || null);
 const unitId = ref(null);
 
 export function useAuth() {
@@ -59,6 +60,7 @@ export function useAuth() {
     role.value = newSession.role;
     displayName.value = newSession.displayName;
     unitCode.value = newSession.unitCode;
+    avatarUrl.value = newSession.avatarUrl;
 
     fetchUnitId(newSession.unitCode);
 
@@ -71,6 +73,7 @@ export function useAuth() {
     role.value = null;
     displayName.value = "User";
     unitCode.value = null;
+    avatarUrl.value = null;
     unitId.value = null;
     sessionStorage.removeItem("dw_session");
     window.location.href = "/"; // Safe redirect to login
@@ -83,6 +86,7 @@ export function useAuth() {
     role,
     displayName,
     unitCode,
+    avatarUrl,
     unitId,
     isLoggedIn,
     isGuest,

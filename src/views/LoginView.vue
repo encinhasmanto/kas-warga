@@ -403,6 +403,7 @@ async function handleLogin() {
         username: result.data.username || null,
         displayName:
           result.data.name || result.data.username || selectedUnit.value,
+        avatarUrl: result.data.avatar_url,
         role,
         isGuest: false,
       };

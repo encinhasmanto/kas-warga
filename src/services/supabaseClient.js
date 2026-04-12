@@ -46,6 +46,7 @@ function syncSession() {
       username: parsed.username,
       displayName: parsed.displayName,
       role: parsed.role,
+      avatarUrl: parsed.avatarUrl,
       isSuperAdmin: isSuperAdmin,
     };
   }

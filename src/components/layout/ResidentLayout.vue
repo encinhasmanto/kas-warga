@@ -4,9 +4,9 @@
     <!-- Desktop Sidebar (Hidden on Mobile) -->
     <aside class="hidden md:flex w-64 bg-white dark:bg-slate-900 border-r border-primary/10 flex-col shrink-0">
       <div class="p-6 flex items-center gap-3">
-        <div class="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shadow-sm overflow-hidden">
+        <div class="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shadow-sm overflow-hidden bg-slate-100 dark:bg-slate-800">
           <img 
-            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Resident" 
+            :src="session?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.displayName || 'Resident'}`" 
             alt="Profile" 
             class="object-cover size-full"
           />
@@ -62,9 +62,9 @@
       <header class="flex items-center bg-white/90 md:bg-white dark:bg-slate-900/90 md:dark:bg-slate-900 backdrop-blur-md md:backdrop-blur-none p-4 md:px-8 border-b border-slate-200 dark:border-slate-800 justify-between shrink-0 z-20">
         
         <!-- Mobile Profile Area -->
-        <div class="flex md:hidden size-10 shrink-0 items-center overflow-hidden rounded-full bg-slate-100">
+        <div class="flex md:hidden size-10 shrink-0 items-center overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
           <img 
-            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Resident" 
+            :src="session?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.displayName || 'Resident'}`" 
             alt="Profile" 
             class="object-cover size-full"
           />
@@ -183,8 +183,8 @@
         </div>
       </transition-group>
     </div>
-
   </div>
+  
 </template>
 
 <script setup>
@@ -192,10 +192,11 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth.js'
 import { fetchInitialNotifications, subscribeToRealtimeNotifications } from '@/services/notificationService.js'
+import { subscribeToProfileChanges } from '@/services/profileService.js'
 
 const router = useRouter()
 const route = useRoute()
-const { session, logout } = useAuth()
+const { session, logout, avatarUrl } = useAuth()
 
 const AR_activeIcon = (name) => route.name === name ? "'FILL' 1" : "'FILL' 0"
 
@@ -203,7 +204,8 @@ const navItems = [
   { name: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { name: 'tracker', icon: 'credit_card', label: 'Tracker' },
   { name: 'history', icon: 'history', label: 'History' },
-  { name: 'bulletin', icon: 'newspaper', label: 'Bulletin' }
+  { name: 'bulletin', icon: 'newspaper', label: 'Bulletin' },
+  { name: 'settings', icon: 'settings', label: 'Settings' }
 ]
 
 const showNotifications = ref(false)
@@ -211,8 +213,25 @@ const notifications = ref([])
 const hasUnread = ref(false)
 const activeToasts = ref([])
 let unsubNotifications = null
+let unsubProfile = null
 
 onMounted(async () => {
+  // Profile Real-time Subscription
+  if (session.value?.id) {
+    unsubProfile = subscribeToProfileChanges('resident', session.value.id, (newData) => {
+      // Update session storage
+      const raw = JSON.parse(sessionStorage.getItem("dw_session") || "{}");
+      raw.avatarUrl = newData.avatar_url;
+      sessionStorage.setItem("dw_session", JSON.stringify(raw));
+      
+      // Update local session (reactive)
+      if (session.value) {
+        session.value.avatarUrl = newData.avatar_url;
+        avatarUrl.value = newData.avatar_url;
+      }
+    });
+  }
+
   const res = await fetchInitialNotifications()
   if (res.success) {
     notifications.value = res.data.map(n => ({...n, isNew: false}))
@@ -231,6 +250,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (unsubNotifications) unsubNotifications()
+  if (unsubProfile) unsubProfile.unsubscribe()
 })
 
 const toggleNotifications = () => {
