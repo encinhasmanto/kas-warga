@@ -184,6 +184,7 @@
     <!-- Payment Modal Component -->
     <PaymentModal
       :isOpen="isPaymentModalOpen"
+      :totalAmount="nextDueAmount"
       @close="isPaymentModalOpen = false"
     />
 
