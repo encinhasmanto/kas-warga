@@ -77,6 +77,24 @@
       <button @click.prevent="setLink" :class="btnClass('link')" title="Link">
         <span class="material-symbols-outlined text-[18px]">link</span>
       </button>
+
+      <!-- Image Upload Button -->
+      <input 
+        type="file" 
+        ref="imageFileInput" 
+        accept="image/*" 
+        class="hidden" 
+        @change="handleImageUpload" 
+      />
+      <button 
+        @click.prevent="triggerImageUpload" 
+        :disabled="isUploadingImage"
+        class="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" 
+        title="Upload Inline Image"
+      >
+        <span v-if="isUploadingImage" class="material-symbols-outlined text-[18px] animate-spin">refresh</span>
+        <span v-else class="material-symbols-outlined text-[18px]">image</span>
+      </button>
       
       <div class="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
 
@@ -123,6 +141,7 @@
 
 <script setup>
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import TiptapImage from '@tiptap/extension-image'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
@@ -132,6 +151,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
 import Link from '@tiptap/extension-link'
+import { uploadBulletinImage } from "@/services/bulletinService.js";
 
 import { ref, watch, onBeforeUnmount, computed, onMounted, onUnmounted } from 'vue'
 
@@ -182,6 +202,12 @@ const editor = useEditor({
       heading: { levels: [1, 2, 3] },
       link: false,
       underline: false,
+    }),
+    TiptapImage.configure({
+      allowBase64: true,
+      HTMLAttributes: {
+        class: 'rounded-xl shadow-lg max-w-full my-6 mx-auto block',
+      },
     }),
     Underline,
     Highlight.configure({
@@ -294,6 +320,40 @@ const setLink = () => {
     return
   }
   
+const editor = useEditor({
+  content: props.modelValue,
+  extensions: [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] },
+      // Important: Ensure these don't conflict
+    }),
+    Underline,
+    TiptapImage.configure({
+      inline: false, // This makes images behave like blocks (easier to manage)
+      HTMLAttributes: {
+        class: 'rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-full my-6 mx-auto block',
+      },
+    }),
+    Highlight.configure({ multicolor: true }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    // ... rest of your extensions
+  ],
+  // ...
+})
+
+// 3. Add this new function to handle inserting the image
+const addImage = () => {
+  if (!editor.value) return
+  
+  // For now, we will ask the user to paste an image URL
+  const url = window.prompt('Paste the image URL here:')
+
+  // If they provided a URL, insert it at the cursor's current position
+  if (url) {
+    editor.value.chain().focus().setImage({ src: url }).run()
+  }
+}
+
   // simple auto-protocol addition
   let validUrl = url
   if (!validUrl.startsWith('http')) {
@@ -322,6 +382,54 @@ const vClickOutside = {
     document.removeEventListener("click", el.clickOutsideEvent);
   },
 };
+
+// 2. Create state variables for the uploader
+const imageFileInput = ref(null);
+const isUploadingImage = ref(false);
+
+// 3. Function to open the file browser
+const triggerImageUpload = () => {
+  if (imageFileInput.value) {
+    imageFileInput.value.click();
+  }
+};
+
+// 4. Function to handle the file once selected
+const handleImageUpload = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  try {
+    isUploadingImage.value = true;
+    
+    // 1. Upload to Supabase
+    const publicUrl = await uploadBulletinImage(file);
+
+    if (publicUrl && editor.value) {
+      // 2. Use the Universal "insertContent" method
+      // This is more robust than setImage
+      editor.value.chain()
+        .focus()
+        .insertContent({
+          type: 'image',
+          attrs: {
+            src: publicUrl,
+            alt: file.name,
+            title: file.name,
+          },
+        })
+        .run();
+        
+      console.log("Image successfully inserted:", publicUrl);
+    }
+  } catch (error) {
+    console.error("Failed to upload inline image:", error);
+    alert("Error: " + error.message);
+  } finally {
+    isUploadingImage.value = false;
+    event.target.value = ''; // Clear input
+  }
+};
 </script>
 
 <script>
@@ -340,6 +448,7 @@ const vClickOutside = {
     document.removeEventListener('click', el._clickOutside)
   }
 }
+
 </script>
 
 <style>

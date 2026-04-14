@@ -7,9 +7,17 @@ import { supabase, getCurrentSession } from "./supabaseClient.js";
 import { auditService } from "./auditService.js";
 
 /**
+ * Helper to normalize and check roles
+ * Ensures 'Super Admin', 'super_admin', and 'admin' all work correctly.
+ */
+const hasAdminPrivileges = (session) => {
+  if (!session || !session.type) return false;
+  const role = session.type.toLowerCase().replace(/[\s_]/g, ''); // cleans 'super_admin' or 'super admin' to 'superadmin'
+  return role === 'admin' || role === 'superadmin';
+};
+
+/**
  * Upload an image file to Supabase Storage (bulletin-assets bucket)
- * @param {File} file - The image file to upload
- * @returns {Promise<string>} The public URL of the uploaded image
  */
 export async function uploadBulletinImage(file) {
   const fileExt = file.name.split(".").pop();
@@ -30,22 +38,15 @@ export async function uploadBulletinImage(file) {
 }
 
 /**
- * Get all available bulletins (for both Residents and Admins)
- * @param {Object} options Options for fetching e.g { limit: 10 }
- * @returns {Promise<Object>} { success: boolean, data: bulletins, error: string }
+ * Get all available bulletins
  */
 export async function getBulletins(options = {}) {
   try {
     let query = supabase
       .from("bulletins")
-      // Select only required fields for list views to reduce payload
-      .select(
-        "id, title, category, content, content_url, is_published, created_at",
-      )
+      .select("id, title, category, content, content_url, is_published, created_at")
       .order("created_at", { ascending: false });
 
-    // Filter out unpublished for non-admins if desired,
-    // but the SQL RLS simplifies it mostly.
     query = query.eq("is_published", true);
 
     const limit = options.limit || 50;
@@ -53,7 +54,6 @@ export async function getBulletins(options = {}) {
     query = query.range(offset, offset + limit - 1);
 
     const { data, error } = await query;
-
     if (error) throw error;
 
     return { success: true, data };
@@ -65,18 +65,18 @@ export async function getBulletins(options = {}) {
 
 /**
  * Create a new bulletin (Admin only)
- * @param {Object} payload { title, content, category, is_published, image_url }
- * @returns {Promise<Object>} { success, data, error }
  */
 export async function createBulletin(payload) {
   try {
     const session = getCurrentSession();
-    if (session.type !== "admin" && session.type !== "superadmin") {
-      throw new Error("Unauthorized: Only Admins can create bulletins.");
-    }
+    
+    // Normalize the role to 'admin' or 'superadmin' (removes spaces and underscores)
+    const role = (session.type || "").toLowerCase().replace(/[\s_]/g, '');
+    const isAuthorized = ['admin', 'superadmin'].includes(role);
 
-    // Rely on Supabase matching the author_id to the authenticated token
-    // so we don't strictly need to inject it, but we can from the session if needed.
+    if (!isAuthorized) {
+      throw new Error(`Unauthorized: Role '${session.type}' is not an Admin.`);
+    }
 
     const { data, error } = await supabase
       .from("bulletins")
@@ -86,10 +86,8 @@ export async function createBulletin(payload) {
           content: payload.content,
           category: payload.category || "General",
           is_published: payload.is_published !== false,
-          // image_url: payload.image_url || null,
-          // video_url: payload.video_url || null,
           content_url: payload.content_url || null,
-          author_id: null, // Custom auth IDs are not valid auth.users UUIDs — column is nullable
+          author_id: session.id // This now matches public.admins(id)
         },
       ])
       .select()
@@ -97,30 +95,24 @@ export async function createBulletin(payload) {
 
     if (error) throw error;
 
-    // Log the audit action
-    await auditService.logAction('CREATE_BULLETIN', { type: 'bulletins', id: data.id });
+    // Log action (won't crash if audit fails)
+    auditService.logAction('CREATE_BULLETIN', { id: data.id }).catch(e => console.warn("Audit failed:", e.message));
 
     return { success: true, data };
   } catch (err) {
-    console.error("❌ Error creating bulletin:", err);
+    console.error("❌ Bulletin Service Error:", err.message);
     return { success: false, error: err.message };
   }
 }
-
 /**
  * Update an existing bulletin (Admin only)
- * @param {string} id Bulletin ID
- * @param {Object} updates { title, content, category, is_published, image_url }
- * @returns {Promise<Object>}
  */
 export async function updateBulletin(id, updates) {
   try {
     const session = getCurrentSession();
-    if (session.type !== "admin" && session.type !== "superadmin") {
+    if (!hasAdminPrivileges(session)) {
       throw new Error("Unauthorized: Only Admins can update bulletins.");
     }
-
-    // The 'updated_at' column is not in the schema, removing append
 
     const { data, error } = await supabase
       .from("bulletins")
@@ -131,7 +123,6 @@ export async function updateBulletin(id, updates) {
 
     if (error) throw error;
 
-    // Log the audit action
     await auditService.logAction('UPDATE_BULLETIN', { type: 'bulletins', id: id });
 
     return { success: true, data };
@@ -143,21 +134,17 @@ export async function updateBulletin(id, updates) {
 
 /**
  * Delete a bulletin (Admin only)
- * @param {string} id Bulletin ID
- * @returns {Promise<Object>}
  */
 export async function deleteBulletin(id) {
   try {
     const session = getCurrentSession();
-    if (session.type !== "admin" && session.type !== "superadmin") {
+    if (!hasAdminPrivileges(session)) {
       throw new Error("Unauthorized: Only Admins can delete bulletins.");
     }
 
     const { error } = await supabase.from("bulletins").delete().eq("id", id);
-
     if (error) throw error;
 
-    // Log the audit action
     await auditService.logAction('DELETE_BULLETIN', { type: 'bulletins', id: id });
 
     return { success: true };

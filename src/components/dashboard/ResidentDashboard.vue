@@ -589,7 +589,7 @@ import {
 import { getKasBalance } from "@/services/transactionService.js";
 import { getBulletins } from "@/services/bulletinService.js";
 import PaymentModal from "@/components/modals/PaymentModal.vue";
-import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
+import BulletinDetailModal from "@/components/modals/BulletinDetailModal.vue";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";
 import {
   formatNumber,

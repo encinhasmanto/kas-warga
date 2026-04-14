@@ -531,7 +531,7 @@ import {
   getTransactions,
 } from "@/services/transactionService.js";
 import { getBulletins } from "@/services/bulletinService.js";
-import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
+import BulletinDetailModal from "@/components/modals/BulletinDetailModal.vue";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";
 import {
   formatNumber,

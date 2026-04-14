@@ -389,7 +389,7 @@ import {
   uploadBulletinImage,
 } from "@/services/bulletinService.js";
 import RichTextEditor from "@/components/forms/RichTextEditor.vue";
-import BulletinDetailModal from "@/components/common/BulletinDetailModal.vue";
+import BulletinDetailModal from "@/components/modals/BulletinDetailModal.vue";
 import { supabase } from "@/services/supabaseClient";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";
 import { formatDate as formatDateUtil, getFileType as getFileTypeUtil } from "@/utils/formatUtils";
