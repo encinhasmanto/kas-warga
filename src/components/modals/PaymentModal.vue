@@ -26,6 +26,15 @@
               <p class="text-slate-900 dark:text-white font-black text-xl">155-00-1585378-4</p>
               <p class="text-[9px] text-slate-500 uppercase mt-1">a.n. YUSRIL ARHAM HASMANTO - <br>TRINADIRA SURYANINGW PRASETYO</p>
             </div>
+             <!-- WA Confirmation -->
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 border border-emerald-100 dark:border-emerald-800/50">
+              <p class="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium text-center leading-relaxed">
+                Konfirmasi bukti bayar ke: <br/>
+                <a href="https://wa.me/6281234967582" target="_blank" class="inline font-bold text-emerald-600 dark:text-emerald-300 hover:underline">
+                  Bendahara PTTH - ENCIN
+                </a>
+              </p>
+            </div>
             <button @click="handleClose" class="w-full bg-slate-950 text-white font-bold py-4 rounded-2xl">Close</button>
           </div>
         </div>
