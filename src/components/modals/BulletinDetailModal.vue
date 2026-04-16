@@ -139,19 +139,85 @@
       </div>
       </div>
     </div>
+    <transition name="fade">
+      <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="confirmClose"></div>
+
+        <div class="relative bg-white dark:bg-slate-900 w-full max-w-4xl h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          
+          <!-- Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900">
+            <input 
+              v-model="bulletinData.title"
+              type="text" 
+              placeholder="Bulletin Title..."
+              class="text-xl font-bold bg-transparent border-none focus:ring-0 p-0 w-full text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+            
+            <div class="flex items-center gap-2 shrink-0 ml-4">
+              <!-- Category Dropdown -->
+              <select 
+                v-model="bulletinData.category" 
+                class="px-3 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-primary/50 cursor-pointer"
+              >
+                <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+              <!-- Save Draft -->
+              <button @click="saveDraft" :disabled="isSaving" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-lg transition-colors">
+                <span v-if="isSaving" class="material-symbols-outlined text-sm animate-spin">refresh</span>
+                <span v-else>Draft</span>
+              </button>
+              <!-- Publish -->
+              <button @click="publishBulletin" :disabled="isSaving" class="px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg transition-colors shadow-sm shadow-primary/20 disabled:opacity-50">
+                Publish
+              </button>
+              <button @click="confirmClose" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Editor -->
+          <div class="flex-1 overflow-hidden p-6 bg-slate-100 dark:bg-slate-950">
+            <RichTextEditor 
+              v-model="bulletinData.content" 
+              :is-saving="isSaving"
+              :last-saved="lastSaved"
+            />
+          </div>
+          
+        </div>
+      </div>
+    </transition>
   </teleport>
 </template>
 
 <script setup>
+import { ref, computed, watch } from "vue";
+import { sanitizeHtml } from "@/utils/sanitizeHtml";
+import { bulletinService } from '@/services/bulletinService';
+import RichTextEditor from '@/components/forms/RichTextEditor.vue';
+
 const props = defineProps({
+  // View mode prop
   bulletin: {
     type: Object,
     default: null,
   },
+  // Edit mode props
+  isOpen: {
+    type: Boolean,
+    default: false
+  },
+  existingBulletin: { 
+    type: Object, 
+    default: null 
+  } 
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["close", "refresh"]);
 
+// --- Shared Logic ---
 const close = () => {
   emit("close");
 };
@@ -160,12 +226,9 @@ const openMedia = (url) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-import { computed } from "vue";
-import { sanitizeHtml } from "@/utils/sanitizeHtml";
-
 const sanitizedContent = computed(() => sanitizeHtml(props.bulletin?.content));
 
-// Smart file type detection from URL (re-used logic)
+// Smart file type detection from URL
 function getFileType(url) {
   if (!url) return "none";
   const lower = url.toLowerCase();
@@ -193,4 +256,109 @@ function formatDate(isoString) {
     minute: "2-digit",
   });
 }
+
+// --- Edit Mode Logic ---
+const categories = ['General', 'Meeting Update', 'Report', 'System Update'];
+
+const bulletinData = ref({
+  id: null,
+  title: '',
+  content: '',
+  category: 'General',
+  is_published: false
+});
+
+const isSaving = ref(false);
+const lastSaved = ref(null);
+let autoSaveInterval = null;
+
+// Start/stop 2-minute auto-save interval when modal opens/closes
+watch(() => props.isOpen, (newVal) => {
+  if (newVal) {
+    if (props.existingBulletin) {
+      bulletinData.value = { ...props.existingBulletin };
+    } else {
+      bulletinData.value = { id: null, title: '', content: '', category: 'General', is_published: false };
+    }
+    lastSaved.value = null;
+    startAutoSave();
+  } else {
+    stopAutoSave();
+  }
+});
+
+const startAutoSave = () => {
+  stopAutoSave();
+  autoSaveInterval = setInterval(async () => {
+    if (!bulletinData.value.title && !bulletinData.value.content) return;
+    await performAutoSave();
+  }, 120000); // 2 minutes
+};
+
+const stopAutoSave = () => {
+  if (autoSaveInterval) {
+    clearInterval(autoSaveInterval);
+    autoSaveInterval = null;
+  }
+};
+
+const performAutoSave = async () => {
+  try {
+    isSaving.value = true;
+    const payload = { ...bulletinData.value };
+    const savedResponse = await bulletinService.saveBulletin(payload);
+    if (!bulletinData.value.id && savedResponse.id) {
+      bulletinData.value.id = savedResponse.id;
+    }
+    lastSaved.value = new Date();
+  } catch (error) {
+    console.error("Auto-save failed:", error);
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const saveDraft = async () => {
+  try {
+    isSaving.value = true;
+    bulletinData.value.is_published = false;
+    const savedResponse = await bulletinService.saveBulletin(bulletinData.value);
+    if (!bulletinData.value.id && savedResponse.id) {
+      bulletinData.value.id = savedResponse.id;
+    }
+    lastSaved.value = new Date();
+    emit('refresh');
+  } catch (error) {
+    console.error("Draft save failed:", error);
+    alert("Failed to save draft.");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const publishBulletin = async () => {
+  try {
+    isSaving.value = true;
+    bulletinData.value.is_published = true;
+    await bulletinService.saveBulletin(bulletinData.value);
+    emit('refresh'); 
+    emit('close');
+  } catch (error) {
+    console.error("Publish failed:", error);
+    alert("Failed to publish bulletin.");
+    bulletinData.value.is_published = false;
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const confirmClose = () => {
+  stopAutoSave();
+  emit('close');
+};
 </script>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>
