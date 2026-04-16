@@ -356,7 +356,7 @@
             {{ latestBulletin.title }}
           </h4>
           <p
-            class="text-sm md:text-base text-slate-500 dark:text-slate-400 line-clamp-4 md:line-clamp-none max-w-3xl mb-6 relative z-10 p-0 m-0"
+            class="text-sm md:text-base text-slate-500 dark:text-slate-400 line-clamp-4 max-w-3xl mb-6 relative z-10 p-0 m-0"
             v-html="sanitizedLatestBulletin"
           ></p>
           <div class="flex items-center gap-4 mt-auto">

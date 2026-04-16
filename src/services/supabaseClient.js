@@ -22,7 +22,23 @@ let currentSession = null;
  * Sync session from storage or manual set
  */
 function syncSession() {
-  const saved = sessionStorage.getItem("dw_session");
+  // Try dw_session first (set during login)
+  let saved = sessionStorage.getItem("dw_session");
+  
+  // Fallback: try Pinia's persisted auth store (survives page reloads)
+  if (!saved) {
+    try {
+      const piniaStore = localStorage.getItem("auth");
+      if (piniaStore) {
+        const pinia = JSON.parse(piniaStore);
+        if (pinia?.session) {
+          saved = JSON.stringify(pinia.session);
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors from localStorage
+    }
+  }
 
   if (saved) {
     let parsed = null;
@@ -54,6 +70,17 @@ function syncSession() {
 
 export function setCurrentSession(session) {
   currentSession = session;
+  // Sync to sessionStorage so services using syncSession() can read the correct role
+  if (session && session.type) {
+    sessionStorage.setItem("dw_session", JSON.stringify({
+      id: session.id,
+      username: session.username,
+      unitCode: session.unitCode,
+      displayName: session.displayName,
+      role: session.role,
+      avatarUrl: session.avatarUrl,
+    }));
+  }
 }
 
 export function getCurrentSession() {

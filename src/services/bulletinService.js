@@ -153,3 +153,74 @@ export async function deleteBulletin(id) {
     return { success: false, error: err.message };
   }
 }
+
+export const bulletinService = {
+  /**
+   * Fetch all bulletins (or filter by is_published boolean)
+   */
+  async getBulletins(isPublished = null) {
+    let query = supabase
+      .from('bulletins')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    // If a specific boolean is passed, filter by it
+    if (isPublished !== null) {
+      query = query.eq('is_published', isPublished);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Save a bulletin (Creates if no ID, Updates if ID exists)
+   * Handles both draft saves and publishes
+   */
+  async saveBulletin(bulletinData) {
+    const isUpdate = !!bulletinData.id;
+    
+    const payload = {
+      title: bulletinData.title,
+      content: bulletinData.content,
+      is_published: bulletinData.is_published || false,
+      category: bulletinData.category || 'General',
+      content_url: bulletinData.content_url || null,
+    };
+
+    if (isUpdate) {
+      const { data, error } = await supabase
+        .from('bulletins')
+        .update(payload)
+        .eq('id', bulletinData.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    } else {
+      // For new bulletins, include author_id from the current session
+      const session = getCurrentSession();
+      const insertPayload = { ...payload };
+      if (session?.id) {
+        insertPayload.author_id = session.id;
+      }
+
+      const { data, error } = await supabase
+        .from('bulletins')
+        .insert([insertPayload])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  async deleteBulletin(id) {
+    const { error } = await supabase.from('bulletins').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+};
