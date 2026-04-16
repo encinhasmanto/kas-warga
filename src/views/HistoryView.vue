@@ -12,65 +12,54 @@
           Comprehensive log of all financial activities.
         </p>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="relative">
-          <span
-            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"
-            >search</span
-          >
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search records..."
-            class="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 w-48 md:w-64"
-          />
-        </div>
-        <div class="flex gap-2">
-          <button
-            @click="exportToCSV"
-            class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-primary/10 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            <span class="material-symbols-outlined text-[18px]">download</span>
-            Export CSV
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+  
+  <div class="relative w-full md:w-72">
+    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">
+      search
+    </span>
+    <input
+      v-model="searchQuery"
+      type="text"
+      placeholder="Search records..."
+      class="h-10 w-full pl-10 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+    />
+  </div>
+
+  <div class="flex items-center gap-2">
+    <button
+      @click="exportToCSV"
+      class="h-10 flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+    >
+      <span class="material-symbols-outlined text-[18px]">download</span>
+      <span class="hidden sm:inline">Export CSV</span>
+    </button>
+
+    <div class="relative group">
+      <div class="py-1">
+        <button class="h-10 flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
+          <span class="material-symbols-outlined text-[18px]">filter_list</span>
+          <span>Filter</span>
+        </button>
+      </div>
+
+      <div class="absolute right-0 top-full pt-1 w-44 z-50 hidden group-hover:block animate-in fade-in slide-in-from-top-1 duration-200">
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-1.5 overflow-hidden">
+          <button @click="filterType = 'all'" class="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold transition-colors">
+            All Types
           </button>
-          <div class="relative group">
-            <button
-              class="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              <span class="material-symbols-outlined text-[18px]"
-                >filter_list</span
-              >
-              <span class="hidden sm:inline">{{
-                filterType === "all" ? "All Types" : filterType
-              }}</span>
-            </button>
-            <div
-              class="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 hidden group-hover:block"
-            >
-              <button
-                @click="filterType = 'all'"
-                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold"
-              >
-                All Types
-              </button>
-              <button
-                @click="filterType = 'Income'"
-                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-emerald-600"
-              >
-                Income Only
-              </button>
-              <button
-                @click="filterType = 'Expense'"
-                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-rose-600"
-              >
-                Expense Only
-              </button>
-            </div>
-          </div>
+          <button @click="filterType = 'Income'" class="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-emerald-600 border-t border-slate-50 dark:border-slate-700/50 transition-colors">
+            Income Only
+          </button>
+          <button @click="filterType = 'Expense'" class="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-rose-600 border-t border-slate-50 dark:border-slate-700/50 transition-colors">
+            Expense Only
+          </button>
         </div>
       </div>
     </div>
-
+  </div>
+</div>
+</div>
     <!-- Main Table Card -->
     <div
       class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[500px]"

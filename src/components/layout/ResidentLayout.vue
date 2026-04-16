@@ -76,15 +76,15 @@
         <!-- Desktop Search & Title Area -->
         <div class="hidden md:flex items-center gap-4">
           <h2 class="text-xl font-bold tracking-tight">Resident Dashboard</h2>
-          <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
-          <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 gap-2 border border-transparent focus-within:border-primary/30 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+          <!-- <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div> -->
+          <!-- <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 gap-2 border border-transparent focus-within:border-primary/30 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
             <span class="material-symbols-outlined text-slate-400 text-lg">search</span>
             <input 
               type="text" 
               placeholder="Search records..." 
               class="bg-transparent border-none text-sm focus:ring-0 p-0 w-48 lg:w-64 placeholder:text-slate-400 text-slate-900 dark:text-slate-100"
             />
-          </div>
+          </div> -->
         </div>
         
         <!-- Common Notification Area -->

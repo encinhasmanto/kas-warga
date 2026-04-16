@@ -1,39 +1,170 @@
 <template>
   <div class="tracker-view p-4 md:p-8">
-    <div class="flex items-end justify-between mb-6">
-      <div>
-        <div class="flex items-center gap-3">
-          <h3 class="text-2xl font-black tracking-tight">Payment Tracker</h3>
-          <select
-            v-model="currentYear"
-            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer hover:border-primary/30"
-            style="padding-right: 30px"
-          >
-            <option v-for="year in availableYears" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
+    <!-- Header Row -->
+    <div class="flex flex-col gap-4 mb-6">
+      <div class="flex items-end justify-between">
+        <div>
+          <div class="flex items-center gap-3">
+            <h3 class="text-2xl font-black tracking-tight">Payment Tracker</h3>
+            <select
+              v-model="currentYear"
+              class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-3 py-1 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer hover:border-primary/30"
+              style="padding-right: 30px"
+            >
+              <option v-for="year in availableYears" :key="year" :value="year">
+                {{ year }}
+              </option>
+            </select>
+          </div>
+          <p class="text-slate-500 text-sm mt-1">
+            Detailed status of Monthly IPL &amp; Special Fees
+          </p>
         </div>
-        <p class="text-slate-500 text-sm mt-1">
-          Detailed status of Monthly IPL & Special Fees
-        </p>
       </div>
-      <div class="flex gap-2">
-        <button
-          class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-primary/10 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-        >
-          <span class="material-symbols-outlined text-[18px]">filter_list</span>
-          Filter Block
-        </button>
-        <button
-          class="flex items-center gap-2 bg-primary text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors"
-        >
-          <span class="material-symbols-outlined text-[18px]">download</span>
-          Export Tracker
-        </button>
+
+      <!-- Search + Actions Bar -->
+      <div class="flex flex-col md:flex-row md:items-center gap-3 w-full">
+        <!-- Search (always visible for all roles) -->
+        <div class="relative w-full md:w-72">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">
+            search
+          </span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search unit or owner..."
+            class="h-10 w-full pl-10 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+          />
+        </div>
+
+        <!-- Export CSV + Filter (admin only) -->
+        <div v-if="isAdmin" class="flex items-center gap-2 ml-auto">
+          <button
+            @click="exportToCSV"
+            class="h-10 flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-95"
+          >
+            <span class="material-symbols-outlined text-[18px]">download</span>
+            <span class="hidden sm:inline">Export CSV</span>
+          </button>
+
+          <button
+            @click="showFilterPanel = !showFilterPanel"
+            :class="[
+              'h-10 flex items-center gap-2 px-4 rounded-lg text-sm font-semibold transition-all shadow-sm active:scale-95',
+              showFilterPanel || hasActiveFilters
+                ? 'bg-primary text-white border border-primary hover:bg-primary/90'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+            ]"
+          >
+            <span class="material-symbols-outlined text-[18px]">filter_list</span>
+            <span>Filter</span>
+            <span
+              v-if="hasActiveFilters"
+              class="ml-1 bg-white/20 text-[10px] font-black px-1.5 py-0.5 rounded-full"
+            >{{ activeFilterCount }}</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Filter Panel (admin only, slides down) -->
+      <transition name="slide-down">
+        <div
+          v-if="isAdmin && showFilterPanel"
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-5 space-y-5"
+        >
+          <!-- Unit Type Toggle Pills -->
+          <div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Unit Type</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                @click="clearTypeFilters"
+                :class="[
+                  'px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all',
+                  activeTypeFilters.length === 0
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                ]"
+              >
+                All Types
+              </button>
+              <button
+                v-for="filter in typeFilterOptions"
+                :key="filter.prefix"
+                @click="toggleTypeFilter(filter.prefix)"
+                :class="[
+                  'px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all',
+                  activeTypeFilters.includes(filter.prefix)
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                ]"
+              >
+                {{ filter.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Month Bills Filter -->
+          <div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Month Bills (Unpaid/Late Count)</p>
+            <div class="flex items-center gap-3">
+              <select
+                v-model="monthBillsOperator"
+                class="h-10 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+              >
+                <option value="gte">≥ More than or equal</option>
+                <option value="lte">≤ Less than or equal</option>
+                <option value="eq">= Exact</option>
+              </select>
+              <input
+                v-model.number="monthBillsValue"
+                type="number"
+                min="0"
+                max="13"
+                placeholder="e.g. 2"
+                class="h-10 w-24 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                v-if="monthBillsValue !== null && monthBillsValue !== ''"
+                @click="monthBillsValue = null"
+                class="h-10 px-3 text-slate-400 hover:text-rose-500 transition-colors"
+                title="Clear"
+              >
+                <span class="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Summary (shown when any filter is active) -->
+          <div
+            v-if="hasActiveFilters"
+            class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700"
+          >
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[16px] text-primary">info</span>
+                <span class="font-bold text-slate-700 dark:text-slate-300">
+                  Showing {{ filteredTrackerData.length }} units
+                </span>
+              </div>
+              <span class="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
+              <span v-if="filterSummary.rumahCount > 0" class="text-xs font-bold text-slate-500">
+                {{ filterSummary.rumahCount }} Rumah (A/B)
+              </span>
+              <span v-if="filterSummary.rumahCount > 0 && filterSummary.rukoCount > 0" class="text-slate-300 text-xs">+</span>
+              <span v-if="filterSummary.rukoCount > 0" class="text-xs font-bold text-slate-500">
+                {{ filterSummary.rukoCount }} Ruko (R)
+              </span>
+              <span class="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
+              <span class="text-xs font-black text-rose-600">
+                Total Debt: Rp {{ formatNumber(filterSummary.totalDebt) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
 
+    <!-- Main Table Card -->
     <div
       class="bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden mb-6"
     >
@@ -89,17 +220,17 @@
                   >
                 </td>
               </tr>
-              <tr v-else-if="trackerData.length === 0">
+              <tr v-else-if="filteredTrackerData.length === 0">
                 <td
                   colspan="15"
                   class="p-12 text-center text-slate-400 font-medium"
                 >
-                  No tracking data found for the current year.
+                  {{ trackerData.length === 0 ? 'No tracking data found for the current year.' : 'No units match the current filters.' }}
                 </td>
               </tr>
               <tr
                 v-else
-                v-for="row in trackerData"
+                v-for="row in filteredTrackerData"
                 :key="row.unit"
                 class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all"
               >
@@ -174,14 +305,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from "vue";
+import { ref, computed, onMounted, watch, onUnmounted } from "vue";
 import { useAuth } from "@/composables/useAuth";
 import { supabase } from "@/services/supabaseClient.js";
 
 const { isResident, isAdmin, session, displayName, unitCode, unitId } =
   useAuth();
 
-// Reactive State for Tracker - serving year selection and data
+// ── Reactive State ──────────────────────────────────────────
 const currentYear = ref(new Date().getFullYear());
 const availableYears = ref([
   new Date().getFullYear() - 2,
@@ -190,26 +321,211 @@ const availableYears = ref([
   new Date().getFullYear() + 1,
 ]);
 
-// Dynamic helper for UI column highlighting
-function isCurrentMonth(index) {
-  const isCurrentYear = currentYear.value === new Date().getFullYear();
-  const isCurrentMonth = index === new Date().getMonth();
-  return isCurrentYear && isCurrentMonth;
-}
-
 const trackerData = ref([]);
 const isLoading = ref(true);
 
-// Setup realtime subscription for payment obligations changes
+// ── Filter State ────────────────────────────────────────────
+const searchQuery = ref("");
+const showFilterPanel = ref(false);
+const activeTypeFilters = ref([]); // e.g. ['A', 'B', 'R']
+const monthBillsOperator = ref("gte"); // 'gte' | 'lte' | 'eq'
+const monthBillsValue = ref(null);
+
+const typeFilterOptions = [
+  { prefix: "A", label: "Rumah A" },
+  { prefix: "B", label: "Rumah B" },
+  { prefix: "R", label: "Ruko R" },
+];
+
+// ── Filter Helpers ──────────────────────────────────────────
+function toggleTypeFilter(prefix) {
+  const idx = activeTypeFilters.value.indexOf(prefix);
+  if (idx > -1) {
+    activeTypeFilters.value.splice(idx, 1);
+  } else {
+    activeTypeFilters.value.push(prefix);
+  }
+}
+
+function clearTypeFilters() {
+  activeTypeFilters.value = [];
+}
+
+function getUnitRate(unitCode) {
+  if (unitCode.startsWith("R")) return 250000;
+  return 170000; // A and B
+}
+
+function getUnpaidCount(row) {
+  const iplUnpaid = row.months.filter(
+    (s) => s === "unpaid" || s === "late"
+  ).length;
+  const thrUnpaid = row.thr === "unpaid" || row.thr === "late" ? 1 : 0;
+  return iplUnpaid + thrUnpaid;
+}
+
+function getUnitDebt(row) {
+  const rate = getUnitRate(row.unit);
+  return getUnpaidCount(row) * rate;
+}
+
+function formatNumber(val) {
+  if (!val && val !== 0) return "0";
+  return new Intl.NumberFormat("id-ID").format(Math.abs(val));
+}
+
+// ── Computed: Active filter indicators ──────────────────────
+const hasActiveFilters = computed(() => {
+  return (
+    activeTypeFilters.value.length > 0 ||
+    (monthBillsValue.value !== null && monthBillsValue.value !== "")
+  );
+});
+
+const activeFilterCount = computed(() => {
+  let count = activeTypeFilters.value.length;
+  if (monthBillsValue.value !== null && monthBillsValue.value !== "") count++;
+  return count;
+});
+
+// ── Computed: Filtered tracker data ─────────────────────────
+const filteredTrackerData = computed(() => {
+  let data = trackerData.value;
+
+  // 1. Search by unit code or owner name (always active for all roles)
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase();
+    data = data.filter(
+      (row) =>
+        row.unit.toLowerCase().includes(q) ||
+        row.owner.toLowerCase().includes(q)
+    );
+  }
+
+  // 2. Unit type filter (admin only, combinable)
+  if (activeTypeFilters.value.length > 0) {
+    data = data.filter((row) =>
+      activeTypeFilters.value.some((prefix) => row.unit.startsWith(prefix))
+    );
+  }
+
+  // 3. Month bills count filter
+  if (monthBillsValue.value !== null && monthBillsValue.value !== "") {
+    const target = Number(monthBillsValue.value);
+    data = data.filter((row) => {
+      const count = getUnpaidCount(row);
+      if (monthBillsOperator.value === "gte") return count >= target;
+      if (monthBillsOperator.value === "lte") return count <= target;
+      return count === target; // 'eq'
+    });
+  }
+
+  return data;
+});
+
+// ── Computed: Summary with A/B vs R breakdown ───────────────
+const filterSummary = computed(() => {
+  const data = filteredTrackerData.value;
+  const rumahUnits = data.filter(
+    (r) => r.unit.startsWith("A") || r.unit.startsWith("B")
+  );
+  const rukoUnits = data.filter((r) => r.unit.startsWith("R"));
+
+  const rumahDebt = rumahUnits.reduce((sum, r) => sum + getUnitDebt(r), 0);
+  const rukoDebt = rukoUnits.reduce((sum, r) => sum + getUnitDebt(r), 0);
+
+  return {
+    rumahCount: rumahUnits.length,
+    rukoCount: rukoUnits.length,
+    totalDebt: rumahDebt + rukoDebt,
+  };
+});
+
+// ── Export CSV ───────────────────────────────────────────────
+function exportToCSV() {
+  if (filteredTrackerData.value.length === 0) return;
+
+  const monthHeaders = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const headers = [
+    "Unit", "Owner", ...monthHeaders, "THR", "Unpaid Bills", "Total Debt (Rp)"
+  ];
+
+  const rows = filteredTrackerData.value.map((row) => [
+    row.unit,
+    row.owner,
+    ...row.months.map((s) => s.toUpperCase()),
+    row.thr.toUpperCase(),
+    getUnpaidCount(row),
+    getUnitDebt(row),
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((r) => r.map((c) => `"${c}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `payment_tracker_${currentYear.value}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── UI Helpers ──────────────────────────────────────────────
+function isCurrentMonth(index) {
+  const isCurrentYr = currentYear.value === new Date().getFullYear();
+  const isCurrentMo = index === new Date().getMonth();
+  return isCurrentYr && isCurrentMo;
+}
+
+function getStatusIcon(status) {
+  switch (status) {
+    case "paid":
+      return { icon: "check_circle", class: "text-emerald-500" };
+    case "late":
+      return { icon: "warning", class: "text-amber-500" };
+    case "unpaid":
+      return { icon: "close", class: "text-rose-500" };
+    default:
+      return {
+        icon: "radio_button_unchecked",
+        class: "text-slate-300 dark:text-slate-700",
+      };
+  }
+}
+
+function getUnpaidMark(obYear, obMonth) {
+  const today = new Date();
+  const currentY = today.getFullYear();
+  const currentM = today.getMonth() + 1;
+  if (obYear > currentY || (obYear === currentY && obMonth >= currentM))
+    return "upcoming";
+  const monthsDiff = currentY * 12 + currentM - (obYear * 12 + obMonth);
+  if (monthsDiff < 2 && monthsDiff > 0) return "late";
+  return "unpaid";
+}
+
+function getThrMark(obYear) {
+  const currentY = new Date().getFullYear();
+  if (obYear > currentY) return "upcoming";
+  if (obYear === currentY) return "late";
+  return "unpaid";
+}
+
+// ── Realtime Subscription ───────────────────────────────────
 let trackerChannel = null;
 
 const setupRealtimeSubscription = () => {
-  if (!session.value) return; // Don't subscribe if not authenticated
+  if (!session.value) return;
 
   const options = {
     event: "*",
     schema: "public",
-    table: "payment_obligations", // Listen to obligations, not transactions
+    table: "payment_obligations",
   };
 
   // 🔒 SECURITY: Residents only listen to THEIR unit. Admins see everything
@@ -236,7 +552,6 @@ const setupRealtimeSubscription = () => {
     .subscribe();
 };
 
-// Watch for auth changes and setup subscription when ready
 watch(
   [session, isAdmin, unitId],
   ([newSession, newIsAdmin, newUnitId]) => {
@@ -252,25 +567,7 @@ onUnmounted(() => {
   trackerChannel = null;
 });
 
-function getUnpaidMark(obYear, obMonth) {
-  const today = new Date();
-  const currentY = today.getFullYear();
-  const currentM = today.getMonth() + 1;
-  if (obYear > currentY || (obYear === currentY && obMonth >= currentM))
-    return "upcoming";
-  const monthsDiff = currentY * 12 + currentM - (obYear * 12 + obMonth);
-  if (monthsDiff < 2 && monthsDiff > 0) return "late";
-  return "unpaid";
-}
-
-function getThrMark(obYear) {
-  const currentY = new Date().getFullYear();
-  if (obYear > currentY) return "upcoming";
-  if (obYear === currentY) return "late";
-  return "unpaid";
-}
-
-// NEW ONE - OPTIMIZED WITH RPC FUNCTIONS
+// ── Data Fetching ───────────────────────────────────────────
 const fetchTrackerData = async () => {
   isLoading.value = true;
 
@@ -381,21 +678,23 @@ watch(
   },
   { immediate: true },
 );
-
-// Updated icon helper to match the strings we created above
-function getStatusIcon(status) {
-  switch (status) {
-    case "paid":
-      return { icon: "check_circle", class: "text-emerald-500" };
-    case "late":
-      return { icon: "warning", class: "text-amber-500" };
-    case "unpaid":
-      return { icon: "close", class: "text-rose-500" };
-    default:
-      return {
-        icon: "radio_button_unchecked",
-        class: "text-slate-300 dark:text-slate-700",
-      };
-  }
-}
 </script>
+
+<style scoped>
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+}
+.slide-down-enter-to,
+.slide-down-leave-from {
+  opacity: 1;
+  max-height: 500px;
+}
+</style>

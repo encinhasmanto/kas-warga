@@ -142,9 +142,9 @@
           </button>
 
           <h2 class="hidden sm:block text-xl font-bold tracking-tight">
-            Command Center
+            Admin Dashboard
           </h2>
-          <div
+          <!-- <div
             class="hidden lg:block h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2"
           ></div>
 
@@ -160,7 +160,7 @@
               placeholder="Search records..."
               class="bg-transparent border-none text-sm focus:ring-0 p-0 w-48 lg:w-64 placeholder:text-slate-400 text-slate-900 dark:text-slate-100"
             />
-          </div>
+          </div> -->
         </div>
 
         <div class="flex items-center gap-2 md:gap-3">
