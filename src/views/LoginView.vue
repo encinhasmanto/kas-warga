@@ -183,13 +183,35 @@
               >
               <input
                 v-model="pin"
-                type="password"
+                :type="showPin ? 'text' : 'password'"
                 inputmode="numeric"
+                pattern="[0-9]*"
                 maxlength="6"
-                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg pl-10 pr-4 py-3.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tracking-[0.8em] text-center font-bold placeholder:tracking-[0.8em]"
+                @input="enforceNumeric"
+                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg pl-10 pr-12 py-3.5 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tracking-[0.8em] text-center font-bold placeholder:tracking-[0.8em]"
                 placeholder="••••••"
                 autocomplete="current-password"
               />
+              <!-- Show/Hide PIN toggle -->
+              <button
+                type="button"
+                @click="toggleShowPin"
+                class="pin-eye-btn absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary focus:outline-none transition-colors duration-200"
+                :aria-label="showPin ? 'Hide PIN' : 'Show PIN'"
+              >
+                <span class="pin-icon-wrap">
+                  <span
+                    class="material-symbols-outlined text-xl pin-icon"
+                    :class="{ 'pin-icon--hidden': !showPin }"
+                    >visibility</span
+                  >
+                  <span
+                    class="material-symbols-outlined text-xl pin-icon pin-icon--off"
+                    :class="{ 'pin-icon--hidden': showPin }"
+                    >visibility_off</span
+                  >
+                </span>
+              </button>
             </div>
           </div>
 
@@ -333,6 +355,16 @@ const pin = ref("");
 const errorMsg = ref("");
 const isLoading = ref(false);
 const showGuestModal = ref(false);
+const showPin = ref(false);
+
+function enforceNumeric(event) {
+  const cleaned = event.target.value.replace(/\D/g, "");
+  pin.value = cleaned;
+}
+
+function toggleShowPin() {
+  showPin.value = !showPin.value;
+}
 
 function onUnitChange() {
   errorMsg.value = "";
@@ -444,5 +476,40 @@ function enterGuestMode(role) {
   transform: translateY(0);
   max-height: 200px;
   margin-top: 20px !important;
+}
+
+/* PIN show/hide eye button */
+.pin-eye-btn {
+  padding: 2px;
+  line-height: 1;
+}
+
+.pin-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+}
+
+.pin-icon {
+  position: absolute;
+  inset: 0;
+  font-size: 20px;
+  line-height: 1;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.pin-icon--off {
+  /* the visibility_off icon starts visible */
+}
+
+.pin-icon--hidden {
+  opacity: 0;
+  transform: scale(0.5) rotate(15deg);
+  pointer-events: none;
 }
 </style>
