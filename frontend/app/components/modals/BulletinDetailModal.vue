@@ -2,12 +2,12 @@
   <teleport to="body">
     <transition name="fade">
       <div v-if="isOpen" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 overflow-hidden">
-        <!-- Setting up the backdrop overlay -->
+        <!-- Backdrop -->
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="close"></div>
 
-        <!-- Defining the main modal container -->
+        <!-- Modal Container -->
         <div class="relative bg-white dark:bg-slate-900 w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-10">
-          <!-- Placing the close button -->
+          <!-- Close Button -->
           <button
             @click="close"
             class="absolute top-4 right-4 z-20 w-9 h-9 flex items-center justify-center bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all"
@@ -15,9 +15,9 @@
             <span class="material-symbols-outlined text-base">close</span>
           </button>
 
-          <!-- Providing a scrollable body area -->
+          <!-- Scrollable Body -->
           <div class="flex-1 overflow-y-auto no-scrollbar">
-            <!-- Handling the media preview section -->
+            <!-- Media Peek -->
             <div v-if="bulletin?.content_url" class="w-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center py-8 shrink-0">
               <img
                 v-if="getFileType(bulletin.content_url) === 'image'"
@@ -45,9 +45,9 @@
               </div>
             </div>
 
-            <!-- Displaying the primary content -->
+            <!-- Content -->
             <div class="p-6 md:p-10 space-y-6">
-              <!-- Presenting the meta information row -->
+              <!-- Meta Row -->
               <div class="flex items-center gap-3 flex-wrap">
                 <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-primary/10 text-primary">
                   {{ bulletin?.category || "General Update" }}
@@ -58,15 +58,15 @@
                 </span>
               </div>
 
-              <!-- Showing the bulletin title -->
+              <!-- Title -->
               <h2 class="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">
                 {{ bulletin?.title }}
               </h2>
 
-              <!-- Drawing the separator divider -->
+              <!-- Divider -->
               <div class="w-12 h-1 bg-primary rounded-full"></div>
 
-              <!-- Injecting the rich text bulletin body -->
+              <!-- Rich Text Content -->
               <div
                 class="prose prose-slate dark:prose-invert max-w-none pb-12"
                 v-html="sanitizedContent"
@@ -94,7 +94,7 @@ const close = () => emit('close')
 
 const sanitizedContent = computed(() => sanitizeHtml(props.bulletin?.content || ''))
 
-// Managing body scroll lock and restoration based on modal state
+// Lock / restore body scroll when modal opens or closes
 watch(() => props.isOpen, (val) => {
   if (typeof document === 'undefined') return
   document.body.style.overflow = val ? 'hidden' : ''

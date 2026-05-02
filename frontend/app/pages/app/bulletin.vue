@@ -16,7 +16,7 @@
     </div>
 
     <div :class="['grid gap-8', isAdmin ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1']">
-      <!-- Rendering the Admin CMS form for creating and editing bulletins -->
+      <!-- Admin CMS Form -->
       <div v-if="isAdmin" v-show="showForm" class="lg:col-span-1">
         <div class="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-xl border border-primary/10 shadow-sm sticky top-8">
           <h4 class="font-bold text-lg mb-6 flex items-center gap-2">
@@ -58,7 +58,7 @@
         </div>
       </div>
 
-      <!-- Displaying the grid of bulletin cards for users -->
+      <!-- Bulletin Cards Grid -->
       <div :class="[isAdmin ? 'lg:col-span-2' : 'col-span-1', 'space-y-4']">
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-primary/10 border-dashed">
           <span class="material-symbols-outlined animate-spin text-4xl text-primary mb-4">refresh</span>
@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    <!-- Including the detail modal component for reading full bulletins -->
+    <!-- Detail Modal -->
     <BulletinDetailModal :bulletin="selectedBulletin" :is-open="!!selectedBulletin" @close="selectedBulletin = null" />
   </div>
 </template>

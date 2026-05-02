@@ -33,27 +33,27 @@ function calculateCRC16(data: string): string {
 export function generateDynamicQRIS(staticPayload: string, amount: number): string {
   if (!staticPayload || !amount || amount <= 0) return staticPayload;
 
-  // 1. Updating Point of Initiation from Static (11) to Dynamic (12) for mobile payments
+  // 1. Point of Initiation Surgery (CRITICAL: Change 11 to 12)
   let dynamicBase = staticPayload.replace('010211', '010212');
 
-  // 2. Stripping the existing Tag 63 and its 4-digit CRC checksum
+  // 2. Remove old Tag 63 (last 8 characters: 6304 + 4-digit CRC)
   let cleanPayload = dynamicBase.slice(0, -8); 
 
-  // 3. Cleaning up any existing Tag 54 amount data to avoid duplicates
+  // 3. Remove existing Tag 54 if present
   cleanPayload = cleanPayload.replace(/54\d{2}\d+/, '');
 
-  // 4. Building the new Amount Tag (Tag 54) using the provided payment total
+  // 4. Construct the Amount Tag (Tag 54)
   const amountValue = Math.floor(amount).toString();
   const amountLength = amountValue.length.toString().padStart(2, '0');
   const tag54 = `54${amountLength}${amountValue}`;
 
-  // 5. Injecting the new amount tag before the Country Code (Tag 58) segment
+  // 5. Inject before Tag 58 (Country Code)
   const parts = cleanPayload.split('5802ID');
   if (parts.length < 2) return staticPayload; 
 
   const payloadToSeal = `${parts[0]}${tag54}5802ID${parts[1]}6304`;
 
-  // 6. Generating the final CRC16-CCITT checksum and sealing the payload
+  // 6. Seal with CRC
   const newCRC = calculateCRC16(payloadToSeal);
 
   return payloadToSeal + newCRC;

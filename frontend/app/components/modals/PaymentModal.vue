@@ -2,13 +2,13 @@
   <teleport to="body">
     <transition name="fade">
       <div v-if="isOpen" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 overflow-hidden">
-        <!-- Rendering the background backdrop -->
+        <!-- Backdrop -->
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="handleClose"></div>
 
-        <!-- Defining the primary modal container -->
+        <!-- Modal Container -->
         <div class="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 z-10 flex flex-col max-h-[90vh]">
           
-          <!-- Structuring the header and QR section -->
+          <!-- Header/QR Section -->
           <div class="bg-slate-50 dark:bg-slate-800/50 p-8 flex flex-col items-center shrink-0">
             <div ref="qrContainer" class="bg-white p-4 rounded-3xl shadow-sm mb-5 relative group">
               <qrcode-vue :value="dynamicQrisString" :size="180" level="H" render-as="svg" class="rounded-lg" />
@@ -31,9 +31,9 @@
             </button>
           </div>
 
-          <!-- Managing the main content area -->
+          <!-- Content Section -->
           <div class="p-6 space-y-4 overflow-y-auto no-scrollbar flex-1">
-            <!-- Displaying bank transfer details -->
+            <!-- Bank Transfer Info -->
             <div class="bg-slate-100 dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700/50 text-center relative group">
               <p class="text-primary font-black text-xs tracking-widest uppercase mb-1">MANDIRI Transfer</p>
               <p class="text-slate-900 dark:text-white font-black text-xl mb-1 tracking-tight">155-00-1585378-4</p>
@@ -45,7 +45,7 @@
               </button>
             </div>
 
-            <!-- Showing WhatsApp confirmation info -->
+            <!-- WA Confirmation -->
             <div class="bg-emerald-100 dark:bg-emerald-900/10 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-800/30">
               <p class="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium text-center leading-relaxed">
                 Confirm your payment with a receipt to: <br/>
@@ -61,10 +61,10 @@
             </button>
           </div>
 
-          <!-- Handling the partial selection slide-up menu -->
+          <!-- Partial Selection Slide-up -->
           <transition name="slide-up">
             <div v-if="showPartialModal" class="absolute inset-0 z-20 flex items-end justify-center">
-              <!-- Adding a nested backdrop for the partial selection -->
+              <!-- Nested Backdrop for selection -->
               <div class="absolute inset-0 bg-slate-900/40" @click="showPartialModal = false"></div>
               
               <div class="relative bg-white dark:bg-slate-900 w-full rounded-t-[2.5rem] shadow-2xl p-6 max-h-[85vh] flex flex-col z-30">
@@ -81,7 +81,7 @@
                 </div>
 
                 <div class="overflow-y-auto no-scrollbar pb-6 flex-1">
-                  <!-- Listing overdue and current bills -->
+                  <!-- Due Bills -->
                   <div v-if="dueBills.length > 0" class="mb-8">
                     <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-1 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
@@ -111,7 +111,7 @@
                     </div>
                   </div>
 
-                  <!-- Showing upcoming bills -->
+                  <!-- Upcoming Bills -->
                   <div v-if="upcomingBills.length > 0">
                     <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-1 flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
@@ -176,7 +176,7 @@ const emit = defineEmits(["close"]);
 
 const { getUnitPaymentStatus } = usePaymentService();
 
-// Defining the static QRIS payload for Bank Mandiri
+// Static QRIS payload (Bank Mandiri)
 const STATIC_QRIS_STRING = "00020101021126690021ID.CO.BANKMANDIRI.WWW01189360000802044317790211720443177930303UMI51440014ID.CO.QRIS.WWW0215ID10265010406240303UMI5204701153033605802ID5923Permata Tajur Townhouse6015Tangerang (Kota61051515262070703A016304C473";
 
 const amountToPay = ref(0);
@@ -189,7 +189,7 @@ const isLoading = ref(false);
 
 const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
-// Computing categories for bill items based on due dates
+// Computed properties for categories
 const dueBills = computed(() => billOptions.value.filter(b => b.isDue));
 const upcomingBills = computed(() => billOptions.value.filter(b => !b.isDue));
 
@@ -227,7 +227,7 @@ async function fetchBills() {
         });
 
       billOptions.value = options;
-      // Selecting all due bills by default for convenience
+      // Default select all due bills
       selectedIds.value = options.filter(o => o.isDue).map(o => o.id);
       
       updatePaymentTotal();
@@ -288,17 +288,17 @@ function downloadQR() {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
-  // Setting high-quality dimensions for the download image
+  // High quality dimensions for the download image
   const width = 1080;
   const height = 1650;
   canvas.width = width;
   canvas.height = height;
   
-  // 1. Drawing the canvas background base layer
+  // 1. Draw Background
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, width, height);
   
-  // Providing a helper to load images safely with promises
+  // Helper to load images safely
   const loadImage = (src) => new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -311,7 +311,7 @@ function downloadQR() {
     loadImage('/icons/LogoPermataTajurTownhouse-alpha12.png'),
     loadImage('data:image/svg+xml;base64,' + btoa(svgData)),
   ]).then(([logoImg, qrImg]) => {
-    // 1.1 Drawing a tiled watermark pattern with rotation
+    // 1.1 Draw Tiled Watermark (Rotated pattern)
     ctx.save();
     const patternCanvas = document.createElement('canvas');
     const patternSize = 140; // Smaller tiles for closer spacing
@@ -332,18 +332,18 @@ function downloadQR() {
     ctx.fillRect(-width * 1.5, -height * 1.5, width * 3, height * 3);
     ctx.restore();
 
-    // 2. Placing the community logo at the top center
+    // 2. Draw Logo (Top Center)
     const logoWidth = 180;
     const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
     ctx.drawImage(logoImg, (width - logoWidth) / 2, 80, logoWidth, logoHeight);
     
-    // 3. Rendering the community title text
+    // 3. Draw Title
     ctx.fillStyle = '#1e293b'; // slate-800
     ctx.font = 'bold 48px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Permata Tajur Townhouse', width / 2, 80 + logoHeight + 60);
     
-    // 4. Drawing the QRIS section with border and padding
+    // 4. Draw QRIS Section
     const qrSize = 520;
     const borderPadding = 75; // Wide space between QR and border
     const borderRadius = 65; // Very round
@@ -369,7 +369,7 @@ function downloadQR() {
     }
     ctx.stroke();
 
-    // Processing the QRIS image to make it hollow by removing the white background
+    // Process QRIS to make it hollow (remove white background)
     const qrTempCanvas = document.createElement('canvas');
     qrTempCanvas.width = qrImg.width;
     qrTempCanvas.height = qrImg.height;
@@ -391,7 +391,7 @@ function downloadQR() {
     // Draw the hollow QRIS
     ctx.drawImage(qrTempCanvas, qrX, qrY, qrSize, qrSize);
     
-    // 5. Displaying the final payment amount information
+    // 5. Draw Payment Amount Info
     ctx.fillStyle = '#64748b'; // slate-500
     ctx.font = 'bold 26px Inter, sans-serif';
     ctx.fillText('PAYMENT AMOUNT', width / 2, qrY + qrSize + 145);
@@ -400,7 +400,7 @@ function downloadQR() {
     ctx.font = '900 84px Inter, sans-serif';
     ctx.fillText(`Rp ${formatNumber(amountToPay.value)}`, width / 2, qrY + qrSize + 240);
     
-    // 6. Drawing the instruction box with wrapped help text
+    // 6. Draw Instruction Box
     const boxWidth = 920;
     const boxHeight = 220;
     const boxX = (width - boxWidth) / 2;
@@ -439,12 +439,12 @@ function downloadQR() {
     }
     ctx.fillText(line, width / 2, currentY);
     
-    // 7. Rendering the "Powered by KasWarga" footer at the bottom
+    // 7. Draw "Powered by KasWarga" Footer
     ctx.fillStyle = '#475569'; // slate-500
     ctx.font = '600 24px Inter, sans-serif';
     ctx.fillText('Powered by KasWarga', width / 2, height - 70);
     
-    // Finalizing and triggering the high-quality image download
+    // Final Step: Download
     const link = document.createElement('a');
     link.download = `QRIS-PTTH-${props.unitId}.png`;
     link.href = canvas.toDataURL('image/png', 1.0);
