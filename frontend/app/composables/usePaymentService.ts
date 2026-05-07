@@ -12,7 +12,7 @@ export const usePaymentService = () => {
       const { data: obligation, error: oblErr } = await supabase
         .from("payment_obligations")
         .select("*")
-        .eq("id", paymentData.obligation_id)
+        .eq("id", Number(paymentData.obligation_id))
         .single();
 
       if (oblErr || !obligation) throw new Error("Obligation not found");
@@ -21,7 +21,7 @@ export const usePaymentService = () => {
       const { data: updated, error: obStatusErr } = await supabase
         .from("payment_obligations")
         .update({ status: true } as any)
-        .eq("id", paymentData.obligation_id)
+        .eq("id", Number(paymentData.obligation_id))
         .select();
 
       if (obStatusErr) throw obStatusErr;
@@ -137,7 +137,7 @@ export const usePaymentService = () => {
           return item.type === "deposit" && item.unit_id === unitId;
         }).map(item => ({
           id: item.id,
-          date: item.transaction_date || item.created_at,
+          date: item.transaction_date,
           amount: item.amount,
           description: item.description,
           type: item.type,
@@ -146,7 +146,7 @@ export const usePaymentService = () => {
         }))
       ];
 
-      unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      unified.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
       return { success: true, data: unified.slice(0, 100) };
     } catch (err: any) {
       return { success: false, error: err.message };

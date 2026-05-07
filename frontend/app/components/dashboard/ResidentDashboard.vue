@@ -93,30 +93,79 @@
       <div class="lg:col-span-2 space-y-6 md:space-y-8">
         <!-- Tracker -->
         <section class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 class="text-lg md:text-xl font-bold tracking-tight mb-6">Payment Tracker {{ currentYear }}</h3>
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg md:text-xl font-bold tracking-tight">Payment Tracker {{ currentYear }}</h3>
+            <span class="text-xs uppercase tracking-widest text-slate-400">Condensed timeline</span>
+          </div>
+
           <div v-if="isLoading" class="flex justify-center py-4">
             <span class="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span>
           </div>
-          <div v-else class="overflow-x-auto pb-2">
-            <table class="w-full text-left text-xs md:text-sm min-w-[600px]">
-              <thead>
-                <tr class="text-slate-400 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <th v-for="(m, i) in monthNames" :key="i" class="pb-3 text-center">{{ m }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td v-for="(monthData, i) in paymentMonths" :key="i" class="pt-3 text-center">
-                    <span v-if="monthData?.uiStatus === 'paid'" class="material-symbols-outlined text-emerald-500">check_circle</span>
-                    <span v-else-if="monthData?.uiStatus === 'late'" class="material-symbols-outlined text-amber-500">warning</span>
-                    <span v-else-if="monthData?.uiStatus === 'unpaid'" class="material-symbols-outlined text-rose-500">close</span>
-                    <span v-else class="material-symbols-outlined text-slate-300 dark:text-slate-700">radio_button_unchecked</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div v-else class="overflow-x-auto pb-2 -mx-6 px-6 md:mx-0 md:px-0">
+            <div class="flex items-stretch gap-3 min-w-[560px]">
+              <template v-for="item in trackerItems" :key="item.key">
+                <div v-if="item.type !== 'ellipsis'" class="flex-shrink-0 min-w-[92px] rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 text-center shadow-sm">
+                  <button
+                    v-if="item.status"
+                    @click="handleShowReceipt(item)"
+                    type="button"
+                    class="group flex w-full flex-col items-center justify-center gap-2"
+                  >
+                    <span
+                      class="material-symbols-outlined text-3xl transition-transform"
+                      :class="item.uiStatus === 'paid'
+                        ? 'text-emerald-500 group-hover:scale-110'
+                        : item.uiStatus === 'late'
+                        ? 'text-amber-500'
+                        : item.uiStatus === 'unpaid'
+                        ? 'text-rose-500'
+                        : 'text-slate-400'"
+                    >
+                      {{ item.uiStatus === 'paid' ? 'check_circle' : item.uiStatus === 'late' ? 'warning' : item.uiStatus === 'unpaid' ? 'close' : 'radio_button_unchecked' }}
+                    </span>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ item.label }}</p>
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                      {{ item.type === 'thr' ? 'THR' : item.uiStatus === 'paid' ? 'Paid' : item.uiStatus === 'late' ? 'Late' : item.uiStatus === 'unpaid' ? 'Unpaid' : 'Upcoming' }}
+                    </p>
+                  </button>
+
+                  <div v-else class="flex flex-col items-center justify-center gap-2">
+                    <span
+                      class="material-symbols-outlined text-3xl"
+                      :class="item.uiStatus === 'paid'
+                        ? 'text-emerald-500'
+                        : item.uiStatus === 'late'
+                        ? 'text-amber-500'
+                        : item.uiStatus === 'unpaid'
+                        ? 'text-rose-500'
+                        : 'text-slate-400'"
+                    >
+                      {{ item.uiStatus === 'paid' ? 'check_circle' : item.uiStatus === 'late' ? 'warning' : item.uiStatus === 'unpaid' ? 'close' : 'radio_button_unchecked' }}
+                    </span>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ item.label }}</p>
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                      {{ item.type === 'thr' ? 'THR' : item.uiStatus === 'paid' ? 'Paid' : item.uiStatus === 'late' ? 'Late' : item.uiStatus === 'unpaid' ? 'Unpaid' : 'Upcoming' }}
+                    </p>
+                  </div>
+                </div>
+
+                <div v-else class="flex-shrink-0 min-w-[92px] flex items-center justify-center rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-400 shadow-sm">
+                  <span class="material-symbols-outlined text-3xl">more_horiz</span>
+                </div>
+              </template>
+            </div>
           </div>
         </section>
+
+        <ClientOnly>
+          <ModalsReceiptPreviewModal
+            :is-open="isReceiptPreviewOpen"
+            :receipt-data="selectedReceiptData"
+            :error-message="receiptError"
+            @close="closeReceiptPreview"
+          />
+        </ClientOnly>
 
         <!-- History -->
         <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -191,17 +240,21 @@ const { firstName, unitCode, unitId } = useAuth()
 const { getKasBalance } = useTransactionService()
 const { getUnitPaymentStatus, getUnitFullHistory } = usePaymentService()
 const { getBulletins } = useBulletinService()
+const { getReceiptByObligation, generateReceipt } = useReceiptService()
 
 const mainBalance = ref(0)
 const sinkingFund = ref(0)
 const nextDueAmount = ref(0)
 const recentTransactions = ref([])
-const paymentMonths = ref(Array(12).fill(null))
+const trackerItems = ref([])
 const latestBulletin = ref(null)
 const selectedBulletin = ref(null)
 const sanitizedLatestBulletin = computed(() => sanitizeHtml(latestBulletin.value?.content || ""))
 const isLoading = ref(true)
 const isPaymentModalOpen = ref(false)
+const isReceiptPreviewOpen = ref(false)
+const selectedReceiptData = ref(null)
+const receiptError = ref(null)
 const nextDueMonthLabel = ref("")
 
 const currentYear = new Date().getFullYear()
@@ -221,8 +274,7 @@ async function fetchData() {
     if (bulletins.success && bulletins.data.length) latestBulletin.value = bulletins.data[0]
     if (status.success) {
       nextDueAmount.value = status.data.current_due_total
-      // Simple map for tracker
-      paymentMonths.value = status.data.obligations.map(o => ({ uiStatus: o.status ? 'paid' : 'unpaid' }))
+      trackerItems.value = buildTrackerItems(status.data.obligations)
     }
     if (history.success) {
       recentTransactions.value = history.data.slice(0, 5).map(t => ({
@@ -237,8 +289,137 @@ async function fetchData() {
   }
 }
 
+function getTrackerStatus(item) {
+  if (item.status) return 'paid'
+
+  if (item.type === 'thr') return 'upcoming'
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  if (!item.month) return 'upcoming'
+  if (item.year > currentYear || (item.year === currentYear && item.month >= currentMonth)) {
+    return 'upcoming'
+  }
+
+  const monthsDiff = currentYear * 12 + currentMonth - (item.year * 12 + item.month)
+  return monthsDiff < 2 ? 'late' : 'unpaid'
+}
+
+function buildTrackerItems(obligations) {
+  const rawItems = obligations.map((obl) => ({
+    key: `obligation-${obl.obligation_id}-${obl.month ?? 'thr'}`,
+    label: obl.month ? `${monthNames[obl.month - 1]} ${obl.year}` : `THR ${obl.year}`,
+    type: obl.month ? 'month' : 'thr',
+    month: obl.month,
+    year: obl.year,
+    obligation_id: obl.obligation_id,
+    status: obl.status,
+    amount_due: obl.amount_due,
+    eventName: obl.event_name,
+  }))
+
+  const months = rawItems
+    .filter((item) => item.type === 'month')
+    .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+
+  const thrItem = rawItems.find((item) => item.type === 'thr')
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  const annotated = months.map((item) => ({
+    ...item,
+    uiStatus: getTrackerStatus(item),
+  }))
+
+  const paidMonths = annotated.filter((item) => item.status)
+  const unpaidPast = annotated.filter((item) => item.uiStatus === 'late' || item.uiStatus === 'unpaid')
+  const upcomingMonths = annotated.filter((item) => item.uiStatus === 'upcoming')
+  const currentMonthItem = annotated.find((item) => item.year === currentYear && item.month === currentMonth)
+
+  const timeline = []
+  const lastPaid = paidMonths.length ? paidMonths[paidMonths.length - 1] : null
+  const firstUnpaid = unpaidPast.length ? unpaidPast[0] : null
+  const secondUnpaid = unpaidPast.length > 1 ? unpaidPast[1] : null
+  const nextUpcoming = upcomingMonths.find((item) => !currentMonthItem || item.key !== currentMonthItem.key)
+
+  if (lastPaid) timeline.push(lastPaid)
+  if (firstUnpaid) timeline.push(firstUnpaid)
+  if (secondUnpaid) timeline.push(secondUnpaid)
+
+  if (unpaidPast.length > 2 && currentMonthItem) {
+    timeline.push({
+      key: 'ellipsis',
+      label: '...',
+      type: 'ellipsis',
+      uiStatus: 'ellipsis',
+      status: false,
+    })
+  }
+
+  if (currentMonthItem && !timeline.some((item) => item.key === currentMonthItem.key)) {
+    timeline.push(currentMonthItem)
+  }
+
+  if (nextUpcoming && !timeline.some((item) => item.key === nextUpcoming.key)) {
+    timeline.push(nextUpcoming)
+  }
+
+  if (thrItem) {
+    timeline.push({
+      ...thrItem,
+      uiStatus: thrItem.status ? 'paid' : 'upcoming',
+    })
+  }
+
+  return timeline
+}
+
 function formatNumber(val) {
   return new Intl.NumberFormat('id-ID').format(val)
+}
+
+function closeReceiptPreview() {
+  isReceiptPreviewOpen.value = false
+  selectedReceiptData.value = null
+  receiptError.value = null
+}
+
+async function handleShowReceipt(item) {
+  receiptError.value = null
+  selectedReceiptData.value = null
+  isReceiptPreviewOpen.value = true
+
+  if (!item?.obligation_id) {
+    receiptError.value = 'Receipt data is unavailable.'
+    return
+  }
+
+  try {
+    const description = item.type === 'thr'
+      ? `THR ${item.year}`
+      : `Iuran Bulanan ${item.label}`
+
+    const res = await generateReceipt({
+      obligation_id: Number(item.obligation_id),
+      unit_id: unitId.value,
+      unit_code: unitCode.value,
+      owner_name: firstName.value || 'Resident',
+      amount: item.amount_due || 0,
+      description,
+    })
+
+    if (!res.success || !res.data) {
+      throw new Error(res.error || 'Unable to load receipt')
+    }
+
+    selectedReceiptData.value = res.data
+  } catch (err) {
+    console.error('Receipt preview failed:', err)
+    receiptError.value = err?.message || 'Failed to load receipt preview.'
+  }
 }
 
 onMounted(() => {

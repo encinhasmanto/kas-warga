@@ -501,6 +501,155 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          id: string
+          type: string
+          subject: string
+          message: string
+          status: string
+          priority: string
+          submitted_by_unit_id: string | null
+          submitted_by_name: string | null
+          admin_notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          type: string
+          subject: string
+          message: string
+          status?: string
+          priority?: string
+          submitted_by_unit_id?: string | null
+          submitted_by_name?: string | null
+          admin_notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          type?: string
+          subject?: string
+          message?: string
+          status?: string
+          priority?: string
+          submitted_by_unit_id?: string | null
+          submitted_by_name?: string | null
+          admin_notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_submitted_by_unit_id_fkey"
+            columns: ["submitted_by_unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      receipts: {
+        Row: {
+          id: string
+          receipt_number: string
+          obligation_id: number | null
+          unit_id: string | null
+          unit_code: string
+          owner_name: string
+          amount: number
+          amount_words: string
+          payment_description: string
+          payment_date: string | null
+          issued_by: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          receipt_number: string
+          obligation_id?: number | null
+          unit_id?: string | null
+          unit_code: string
+          owner_name: string
+          amount: number
+          amount_words: string
+          payment_description: string
+          payment_date?: string | null
+          issued_by: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          receipt_number?: string
+          obligation_id?: number | null
+          unit_id?: string | null
+          unit_code?: string
+          owner_name?: string
+          amount?: number
+          amount_words?: string
+          payment_description?: string
+          payment_date?: string | null
+          issued_by?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_obligation_id_fkey"
+            columns: ["obligation_id"]
+            isOneToOne: false
+            referencedRelation: "payment_obligations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      receipt_sequences: {
+        Row: {
+          year: number
+          last_sequence: number
+          updated_at: string | null
+        }
+        Insert: {
+          year: number
+          last_sequence?: number
+          updated_at?: string | null
+        }
+        Update: {
+          year?: number
+          last_sequence?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          key: string
+          value: string
+          description: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          key: string
+          value: string
+          description?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          key?: string
+          value?: string
+          description?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -579,6 +728,10 @@ export type Database = {
       update_units_pin: {
         Args: { p_new_pin: string; p_old_pin: string; p_units_id: string }
         Returns: boolean
+      }
+      get_next_receipt_number: {
+        Args: { p_year: number; p_month: number }
+        Returns: string
       }
     }
     Enums: {

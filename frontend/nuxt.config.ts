@@ -54,6 +54,9 @@ export default defineNuxtConfig({
     public: {
       // Add other public variables here if needed
     },
+    private: {
+      supabaseServiceRole: process.env.SUPABASE_SERVICE_ROLE || ''
+    }
   },
 
   // Future-proofing for Go backend

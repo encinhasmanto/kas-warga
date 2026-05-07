@@ -18,6 +18,9 @@
     <ResidentLayout v-else>
       <slot />
     </ResidentLayout>
+
+    <!-- Global Feedback FAB -->
+    <FeedbackFAB />
   </div>
 </template>
 

@@ -71,17 +71,43 @@
             <tr v-else v-for="row in filteredTrackerData" :key="row.unit" class="hover:bg-slate-50">
               <td class="p-4 font-bold text-primary sticky left-0 bg-white z-10">{{ row.unit }}</td>
               <td class="p-4 whitespace-nowrap font-medium">{{ row.owner }}</td>
-              <td v-for="(status, index) in row.months" :key="index" class="p-4 text-center transition-colors"
+              <td v-for="(status, index) in row.months" :key="index" class="p-4 text-center transition-colors relative"
                 :class="isCurrentMonth(index) ? 'bg-primary/5' : ''">
-                <span class="material-symbols-outlined" :class="getStatusIcon(status).class">{{ getStatusIcon(status).icon }}</span>
+                <button 
+                  v-if="status === 'paid'"
+                  @click="handleShowReceipt(row, index + 1)"
+                  class="group relative"
+                >
+                  <span class="material-symbols-outlined text-emerald-500 group-hover:scale-125 transition-transform">check_circle</span>
+                  <span class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    View Receipt
+                  </span>
+                </button>
+                <span v-else class="material-symbols-outlined" :class="getStatusIcon(status).class">{{ getStatusIcon(status).icon }}</span>
               </td>
               <td class="p-4 text-center bg-primary/5">
-                <span class="material-symbols-outlined" :class="getStatusIcon(row.thr).class">{{ getStatusIcon(row.thr).icon }}</span>
+                <button 
+                  v-if="row.thr === 'paid'"
+                  @click="handleShowReceipt(row, null)"
+                  class="group relative"
+                >
+                  <span class="material-symbols-outlined text-emerald-500 group-hover:scale-125 transition-transform">check_circle</span>
+                </button>
+                <span v-else class="material-symbols-outlined" :class="getStatusIcon(row.thr).class">{{ getStatusIcon(row.thr).icon }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- Receipt Preview Modal (Client Only to prevent jsPDF SSR crash) -->
+      <ClientOnly>
+        <ModalsReceiptPreviewModal 
+          :is-open="isReceiptModalOpen" 
+          :receipt-data="selectedReceiptData" 
+          @close="isReceiptModalOpen = false" 
+        />
+      </ClientOnly>
 
       <!-- Legend -->
       <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-primary/10 flex flex-wrap items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -114,6 +140,7 @@ definePageMeta({
 
 const { isAdmin, unitId, unitCode, displayName } = useAuth()
 const supabase = useSupabaseClient()
+const { getReceiptByObligation, generateReceipt } = useReceiptService()
 
 const currentYear = ref(new Date().getFullYear())
 const availableYears = [2024, 2025, 2026]
@@ -123,6 +150,10 @@ const searchQuery = ref("")
 const showFilterPanel = ref(false)
 const activeTypeFilters = ref([])
 const monthHeaders = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Receipt State
+const isReceiptModalOpen = ref(false)
+const selectedReceiptData = ref(null)
 
 const isCurrentMonth = (index) => {
   const now = new Date()
@@ -193,6 +224,8 @@ async function fetchTrackerData() {
     if (error) throw error
 
     trackerData.value = (data || []).map(row => ({
+      // get_resident_tracker doesn't return unit_id — fallback to the auth unitId for residents
+      unit_id: row.unit_id ?? unitId.value,
       unit: row.unit_code,
       owner: row.owner_name,
       months: [row.month_1, row.month_2, row.month_3, row.month_4, row.month_5, row.month_6, row.month_7, row.month_8, row.month_9, row.month_10, row.month_11, row.month_12]
@@ -203,6 +236,63 @@ async function fetchTrackerData() {
     console.error(err)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function handleShowReceipt(row, monthIndex) {
+  // Guard: must have a unit ID to look up obligations
+  const resolvedUnitId = row.unit_id || unitId.value;
+  if (!resolvedUnitId) {
+    console.warn('Cannot show receipt: no unit ID available');
+    return;
+  }
+
+  try {
+    isReceiptModalOpen.value = true;   // Open modal immediately to show loading state
+    selectedReceiptData.value = null;  // null = loading
+
+    // 1. Find the paid obligation
+    let query = supabase
+      .from('payment_obligations')
+      .select('id, amount, year, month_index, event:payment_events(display_name, key)')
+      .eq('unit_id', resolvedUnitId)
+      .eq('year', currentYear.value)
+      .eq('status', true);
+
+    if (monthIndex) {
+      // Monthly IPL obligation
+      query = query.eq('month_index', monthIndex);
+    } else {
+      // THR: month_index is null (annual event)
+      query = query.is('month_index', null);
+    }
+
+    const { data: obligation, error } = await query.maybeSingle();
+
+    if (error) throw error;
+    if (!obligation) throw new Error('Paid obligation not found. It may have been recorded differently.');
+
+    // 2. Generate or fetch existing receipt (idempotent)
+    const res = await generateReceipt({
+      obligation_id: obligation.id,
+      unit_id: resolvedUnitId,
+      unit_code: row.unit,
+      owner_name: row.owner,
+      amount: obligation.amount || (row.unit.startsWith('R') ? 250000 : 170000),
+      description: monthIndex
+        ? `Iuran Bulanan ${monthHeaders[monthIndex - 1]} ${currentYear.value}`
+        : `${obligation.event?.display_name || 'THR'} ${currentYear.value}`,
+    });
+
+    if (res.success && res.data) {
+      selectedReceiptData.value = res.data;
+    } else {
+      throw new Error(res.error || 'Failed to generate receipt');
+    }
+  } catch (err) {
+    console.error('Receipt generation failed:', err);
+    isReceiptModalOpen.value = false;
+    selectedReceiptData.value = null;
   }
 }
 
