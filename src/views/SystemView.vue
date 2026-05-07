@@ -178,7 +178,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, reactive } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { getProfileData, updateUnitPin, uploadAvatar, subscribeToProfileChanges } from '@/services/profileService';
 
@@ -190,10 +190,21 @@ const isUpdatingPin = ref(false);
 const showSuccessModal = ref(false);
 const successContent = ref({ title: '', message: '' });
 
-const pinForm = ref({
+// Data for the PIN fields
+const pinForm = reactive({
   oldPin: '',
   newPin: ''
 });
+
+// State to toggle visibility
+const showPins = ref(false);
+
+// Function to ensure only numbers are saved to the model
+const enforceNumeric = (event, field) => {
+  const value = event.target.value;
+  // Use regex to remove any character that is NOT a digit 0-9
+  pinForm[field] = value.replace(/\D/g, '');
+};
 
 let profileSub = null;
 
