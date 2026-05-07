@@ -8,13 +8,16 @@ import { auditService } from "./auditService.js";
 
 /**
  * Fetch profile data by ID and type
- * @param {string} id 
+ * @param {string} id
  * @param {'resident'|'admin'} type
  */
 export async function getProfileData(id, type) {
   try {
     const table = type === "admin" ? "admins" : "units";
-    const select = type === "admin" ? "id, username, avatar_url" : "id, code, name, avatar_url";
+    const select =
+      type === "admin"
+        ? "id, username, avatar_url"
+        : "id, code, name, avatar_url";
 
     const { data, error } = await supabase
       .from(table)
@@ -23,7 +26,7 @@ export async function getProfileData(id, type) {
       .single();
 
     if (error) throw error;
-    
+
     // Normalize names for UI
     if (type === "admin") {
       data.name = data.username;
@@ -39,9 +42,9 @@ export async function getProfileData(id, type) {
 
 /**
  * Update unit PIN using RPC (Residents only)
- * @param {string} unitId 
- * @param {string} oldPin 
- * @param {string} newPin 
+ * @param {string} unitId
+ * @param {string} oldPin
+ * @param {string} newPin
  */
 export async function updateUnitPin(unitId, oldPin, newPin) {
   try {
@@ -52,9 +55,9 @@ export async function updateUnitPin(unitId, oldPin, newPin) {
     });
 
     if (error) throw error;
-    
+
     if (data) {
-      await auditService.logAction('CHANGE_PIN', { type: 'units', id: unitId });
+      await auditService.logAction("CHANGE_PIN", { type: "units", id: unitId });
       return { success: true };
     } else {
       return { success: false, error: "Incorrect current PIN" };
@@ -67,9 +70,9 @@ export async function updateUnitPin(unitId, oldPin, newPin) {
 
 /**
  * Upload profile photo to Supabase Storage with cleanup
- * @param {File} file 
- * @param {string} id 
- * @param {'resident'|'admin'} type 
+ * @param {File} file
+ * @param {string} id
+ * @param {'resident'|'admin'} type
  */
 export async function uploadAvatar(file, id, type) {
   try {
@@ -97,9 +100,9 @@ export async function uploadAvatar(file, id, type) {
     if (uploadError) throw uploadError;
 
     // 4. Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from("avatar")
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("avatar").getPublicUrl(filePath);
 
     // 5. Update table with new URL
     const { error: updateError } = await supabase
@@ -110,7 +113,11 @@ export async function uploadAvatar(file, id, type) {
     if (updateError) throw updateError;
 
     // Log the audit action
-    await auditService.logAction('UPLOAD_AVATAR', { type: table, id: id }, { filename: fileName });
+    await auditService.logAction(
+      "UPLOAD_AVATAR",
+      { type: table, id: id },
+      { filename: fileName },
+    );
 
     // 6. Cleanup: Delete OLD file if it exists and is from our bucket
     if (current?.avatar_url && current.avatar_url.includes("/avatar/")) {
@@ -134,15 +141,18 @@ export async function uploadAvatar(file, id, type) {
 
 /**
  * Subscribe to profile changes for real-time updates
- * @param {'resident'|'admin'} type 
- * @param {string} id 
- * @param {Function} onUpdate 
+ * @param {'resident'|'admin'} type
+ * @param {string} id
+ * @param {Function} onUpdate
  */
 export function subscribeToProfileChanges(type, id, onUpdate) {
   const table = type === "admin" ? "admins" : "units";
-  
-  return supabase
-    .channel(`${table}-profile-changes-${id}`)
+
+  // Create a unique channel identifier to prevent conflicts
+  const channelName = `${table}-profile-changes-${id}-${Math.random().toString(36).substring(2, 9)}`;
+
+  const channel = supabase
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
@@ -154,7 +164,9 @@ export function subscribeToProfileChanges(type, id, onUpdate) {
       (payload) => {
         console.log("🔄 Real-time profile update detected:", payload.new);
         onUpdate(payload.new);
-      }
+      },
     )
     .subscribe();
+
+  return channel;
 }
