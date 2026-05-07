@@ -68,33 +68,55 @@
           
           <div class="p-6 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Current PIN Field -->
               <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Current PIN</label>
                 <div class="relative">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">key</span>
+                  
                   <input 
                     v-model="pinForm.oldPin"
-                    type="password" 
+                    :type="showPins ? 'text' : 'password'" 
+                    inputmode="numeric"
+                    pattern="[0-9]*"
                     maxlength="6"
+                    @input="enforceNumeric($event, 'oldPin')"
                     placeholder="••••••"
-                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
+                    class="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium tracking-widest"
                   />
+            
+                  <!-- Visibility Toggle Button -->
+                  <button 
+                    type="button"
+                    @click="showPins = !showPins"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    <span class="material-symbols-outlined text-lg">
+                      {{ showPins ? 'visibility' : 'visibility_off' }}
+                    </span>
+                  </button>
                 </div>
               </div>
+            
+              <!-- New PIN Field -->
               <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">New PIN</label>
                 <div class="relative">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">password</span>
+                  
                   <input 
                     v-model="pinForm.newPin"
-                    type="password" 
+                    :type="showPins ? 'text' : 'password'" 
+                    inputmode="numeric"
+                    pattern="[0-9]*"
                     maxlength="6"
+                    @input="enforceNumeric($event, 'newPin')"
                     placeholder="••••••"
-                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
+                    class="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium tracking-widest"
                   />
                 </div>
               </div>
-            </div>
+            </div>            
             
             <div class="flex justify-end pt-2">
               <button 
