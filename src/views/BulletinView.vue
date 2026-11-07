@@ -9,7 +9,8 @@ import {
   uploadBulletinImage,
   bulletinService
 } from "@/services/bulletinService.js";
-import RichTextEditor from "@/components/forms/RichTextEditor.vue";
+import { defineAsyncComponent } from 'vue';
+const RichTextEditor = defineAsyncComponent(() => import('@/components/forms/RichTextEditor.vue'));
 import BulletinDetailModal from "@/components/modals/BulletinDetailModal.vue";
 import { supabase } from "@/services/supabaseClient";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";

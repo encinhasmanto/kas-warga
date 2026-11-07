@@ -305,8 +305,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onUnmounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useAuth } from "@/composables/useAuth";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh.js";
 import { supabase } from "@/services/supabaseClient.js";
 
 const { isResident, isAdmin, session, displayName, unitCode, unitId } =
@@ -517,55 +518,27 @@ function getThrMark(obYear) {
 }
 
 // ── Realtime Subscription ───────────────────────────────────
-let trackerChannel = null;
-
-const setupRealtimeSubscription = () => {
-  if (!session.value) return;
-
-  const options = {
-    event: "*",
-    schema: "public",
-    table: "payment_obligations",
-  };
-
-  // 🔒 SECURITY: Residents only listen to THEIR unit. Admins see everything
-  if (!isAdmin.value && unitId.value) {
-    options.filter = `unit_id=eq.${unitId.value}`;
-  }
-
-  // remove previous channel if exists
-  if (trackerChannel) {
-    try {
-      supabase.removeChannel(trackerChannel);
-    } catch (e) {
-      /* ignore */
-    }
-    trackerChannel = null;
-  }
-
-  trackerChannel = supabase
-    .channel("payment-obligation-updates")
-    .on("postgres_changes", options, (payload) => {
-      // Refresh tracker data when payment obligations change
-      fetchTrackerData();
-    })
-    .subscribe();
-};
+const trackerRealtime = useRealtimeRefresh(
+  "tracker",
+  () => [
+    {
+      table: "payment_obligations",
+      // Warga hanya mendengarkan unit miliknya; admin melihat semua
+      filter: !isAdmin.value && unitId.value ? `unit_id=eq.${unitId.value}` : undefined,
+    },
+  ],
+  () => fetchTrackerData(),
+);
 
 watch(
   [session, isAdmin, unitId],
   ([newSession, newIsAdmin, newUnitId]) => {
     if (newSession && (newIsAdmin || newUnitId)) {
-      setupRealtimeSubscription();
+      trackerRealtime.start();
     }
   },
   { immediate: true },
 );
-
-onUnmounted(() => {
-  if (trackerChannel) supabase.removeChannel(trackerChannel);
-  trackerChannel = null;
-});
 
 // ── Data Fetching ───────────────────────────────────────────
 const fetchTrackerData = async () => {

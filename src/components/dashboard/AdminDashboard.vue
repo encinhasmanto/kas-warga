@@ -524,8 +524,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { supabase } from "@/services/supabaseClient.js";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh.js";
 import {
   getKasBalance,
   getTransactions,
@@ -718,37 +719,17 @@ async function fetchDashboardData() {
   isLoading.value = false;
 }
 
-let txSubscription = null;
-let bulletinSubscription = null;
+const adminRealtime = useRealtimeRefresh(
+  "admin-dashboard",
+  () => [
+    { table: "transactions" },
+    { table: "bulletins" },
+  ],
+  () => fetchDashboardData(),
+);
 
 onMounted(() => {
   fetchDashboardData();
-  // Subscribe to transactions
-  txSubscription = supabase
-    .channel("dashboard-transactions")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "transactions" },
-      () => {
-        fetchDashboardData();
-      },
-    )
-    .subscribe();
-  // Subscribe to bulletins
-  bulletinSubscription = supabase
-    .channel("dashboard-bulletins")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "bulletins" },
-      () => {
-        fetchDashboardData();
-      },
-    )
-    .subscribe();
-});
-
-onUnmounted(() => {
-  if (txSubscription) supabase.removeChannel(txSubscription);
-  if (bulletinSubscription) supabase.removeChannel(bulletinSubscription);
+  adminRealtime.start();
 });
 </script>

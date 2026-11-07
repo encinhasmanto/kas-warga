@@ -196,7 +196,8 @@
 import { ref, computed, watch } from "vue";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";
 import { bulletinService } from '@/services/bulletinService';
-import RichTextEditor from '@/components/forms/RichTextEditor.vue';
+import { defineAsyncComponent } from 'vue';
+const RichTextEditor = defineAsyncComponent(() => import('@/components/forms/RichTextEditor.vue'));
 
 const props = defineProps({
   // View mode prop
