@@ -278,11 +278,7 @@
       <main
         class="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-background-light dark:bg-background-dark"
       >
-        <router-view v-slot="{ Component }">
-          <transition name="page" mode="out-in">
-            <component :is="Component" :key="$route.fullPath" />
-          </transition>
-        </router-view>
+        <NuxtPage :page-key="(r) => r.fullPath" :transition="{ name: 'page', mode: 'out-in' }" />
       </main>
     </div>
 
