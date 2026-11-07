@@ -4,3 +4,9 @@
 .vscode
 /plan/
 /node_modules/
+
+# build output
+/dist/
+/.vite/
+.nuxt/
+.output/

@@ -579,8 +579,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useAuth } from "@/composables/useAuth.js";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh.js";
 import { supabase } from "@/services/supabaseClient.js";
 import {
   getUnitPaymentStatus,
@@ -626,14 +627,6 @@ const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 const monthNames = MONTH_NAMES;
 
-const residentSubscriptions = [];
-
-function cleanupResidentSubscriptions() {
-  residentSubscriptions.forEach((channel) => {
-    if (channel) supabase.removeChannel(channel);
-  });
-  residentSubscriptions.length = 0;
-}
 
 function getResidentUnitFilter() {
   const uId = unitId.value || session.value?.unit_id || session.value?.id;
@@ -791,61 +784,26 @@ async function fetchResidentDashboardData(forceLoading = false) {
   isLoading.value = false;
 }
 
-function subscribeResidentUpdates() {
-  cleanupResidentSubscriptions();
-  const paymentFilter = getResidentUnitFilter();
-
-  const transactionChannel = supabase
-    .channel("resident-dashboard-transactions")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "transactions" },
-      () => fetchResidentDashboardData(),
-    )
-    .subscribe();
-
-  const paymentChannel = supabase
-    .channel("resident-dashboard-payment-transactions")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "payment_transactions",
-        ...(paymentFilter ? { filter: paymentFilter } : {}),
-      },
-      () => fetchResidentDashboardData(),
-    )
-    .subscribe();
-
-  const obligationChannel = supabase
-    .channel("resident-dashboard-obligations")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "payment_obligations",
-        ...(paymentFilter ? { filter: paymentFilter } : {}),
-      },
-      () => fetchResidentDashboardData(),
-    )
-    .subscribe();
-
-  residentSubscriptions.push(
-    transactionChannel,
-    paymentChannel,
-    obligationChannel,
-  );
-}
+const residentRealtime = useRealtimeRefresh(
+  "resident-dashboard",
+  () => {
+    const f = getResidentUnitFilter();
+    return [
+      { table: "transactions" },
+      { table: "payment_transactions", filter: f },
+      { table: "payment_obligations", filter: f },
+    ];
+  },
+  () => fetchResidentDashboardData(),
+);
 
 watch(
   [session, unitCode, unitId, isAdmin],
   ([newSession, newUnitCode]) => {
     if (isAdmin.value || (newSession && newUnitCode)) {
-      subscribeResidentUpdates();
+      residentRealtime.start();
     } else {
-      cleanupResidentSubscriptions();
+      residentRealtime.stop();
     }
   },
   { immediate: true },
@@ -853,12 +811,6 @@ watch(
 
 onMounted(() => {
   fetchResidentDashboardData(true);
-});
-
-onUnmounted(() => {
-  residentSubscriptions.forEach((channel) => {
-    if (channel) supabase.removeChannel(channel);
-  });
 });
 
 const openSupport = () => {

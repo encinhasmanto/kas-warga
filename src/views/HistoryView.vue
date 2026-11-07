@@ -256,9 +256,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { supabase } from "@/services/supabaseClient.js";
 import { useAuth } from "@/composables/useAuth.js";
+import { useRealtimeRefresh } from "@/composables/useRealtimeRefresh.js";
 import { getTransactions } from "@/services/transactionService.js";
 import {
   getUnitPaymentStatus,
@@ -274,18 +275,6 @@ const searchQuery = ref("");
 const filterType = ref("all");
 const currentPage = ref(1);
 const itemsPerPage = 25;
-const historySubscriptions = [];
-
-function cleanupHistorySubscriptions() {
-  historySubscriptions.forEach((channel) => {
-    try {
-      if (channel) supabase.removeChannel(channel);
-    } catch (e) {
-      /* ignore */
-    }
-  });
-  historySubscriptions.length = 0;
-}
 
 function getHistoryUnitFilter() {
   const uId = unitId.value || session.value?.unit_id || session.value?.id;
@@ -476,62 +465,26 @@ async function fetchHistoryData(forceLoading = false) {
   isLoading.value = false;
 }
 
-function subscribeHistoryUpdates() {
-  cleanupHistorySubscriptions();
-
-  const paymentFilter = getHistoryUnitFilter();
-
-  const transactionChannel = supabase
-    .channel("history-transactions")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "transactions" },
-      () => fetchHistoryData(),
-    )
-    .subscribe();
-
-  historySubscriptions.push(transactionChannel);
-
-  const paymentTxChannel = supabase
-    .channel("history-payment-transactions")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "payment_transactions",
-        ...(paymentFilter ? { filter: paymentFilter } : {}),
-      },
-      () => fetchHistoryData(),
-    )
-    .subscribe();
-
-  historySubscriptions.push(paymentTxChannel);
-
-  const obligationChannel = supabase
-    .channel("history-obligations")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "payment_obligations",
-        ...(paymentFilter ? { filter: paymentFilter } : {}),
-      },
-      () => fetchHistoryData(),
-    )
-    .subscribe();
-
-  historySubscriptions.push(obligationChannel);
-}
+const historyRealtime = useRealtimeRefresh(
+  "history",
+  () => {
+    const f = getHistoryUnitFilter();
+    return [
+      { table: "transactions" },
+      { table: "payment_transactions", filter: f },
+      { table: "payment_obligations", filter: f },
+    ];
+  },
+  () => fetchHistoryData(),
+);
 
 watch(
   [session, unitCode, unitId, isAdmin],
   ([newSession, newUnitCode]) => {
     if (isAdmin.value || (newSession && newUnitCode)) {
-      subscribeHistoryUpdates();
+      historyRealtime.start();
     } else {
-      cleanupHistorySubscriptions();
+      historyRealtime.stop();
     }
   },
   { immediate: true },
@@ -539,12 +492,6 @@ watch(
 
 onMounted(async () => {
   await fetchHistoryData(true);
-});
-
-onUnmounted(() => {
-  historySubscriptions.forEach((channel) => {
-    if (channel) supabase.removeChannel(channel);
-  });
 });
 
 const cleanDescription = (desc, categoryName) => {
