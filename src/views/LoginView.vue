@@ -239,44 +239,28 @@
           </button>
         </form>
 
-        <!-- Guest/Demo Section -->
+        <!-- Guest & Demo -->
         <div
+          v-if="showDemoLink"
           class="bg-slate-50 dark:bg-slate-800/50 p-6 md:px-12 border-t border-slate-200 dark:border-slate-800 mt-auto"
         >
-          <p
-            class="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4"
+          <a
+            :href="demoUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-3 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
           >
-            Guest Access & Demos
+            <span class="material-symbols-outlined text-base text-primary"
+              >person_outline</span
+            >
+            Guest &amp; Demo
+            <span class="material-symbols-outlined text-base text-slate-400"
+              >open_in_new</span
+            >
+          </a>
+          <p class="text-center text-[11px] text-slate-400 mt-2">
+            Coba aplikasi dengan data contoh, tanpa data warga asli.
           </p>
-          <div class="grid grid-cols-3 gap-2">
-            <button
-              @click="enterGuestMode('Resident')"
-              class="flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2.5 px-2 rounded-lg text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <span class="material-symbols-outlined text-base text-primary"
-                >person_outline</span
-              >
-              Resident
-            </button>
-            <button
-              @click="enterGuestMode('Admin')"
-              class="flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2.5 px-2 rounded-lg text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <span class="material-symbols-outlined text-base text-primary"
-                >admin_panel_settings</span
-              >
-              Admin
-            </button>
-            <button
-              @click="enterGuestMode('Super Admin')"
-              class="flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2.5 px-2 rounded-lg text-[11px] font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <span class="material-symbols-outlined text-base text-primary"
-                >shield_person</span
-              >
-              Super
-            </button>
-          </div>
         </div>
 
         <!-- Mobile Footer Info -->
@@ -285,54 +269,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Demo Not Available Modal -->
-    <teleport to="body">
-      <div
-        v-if="showGuestModal"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      >
-        <!-- Backdrop (Edge-to-edge background) -->
-        <div 
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-          @click="showGuestModal = false"
-        ></div>
-
-        <!-- Modal Content -->
-        <div
-          class="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative overflow-hidden"
-          @click.stop
-        >
-        <div class="flex items-center gap-4 mb-4">
-          <div
-            class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-3 rounded-full flex items-center justify-center"
-          >
-            <span class="material-symbols-outlined text-3xl">construction</span>
-          </div>
-          <div>
-            <h3
-              class="text-xl font-bold tracking-tight text-slate-900 dark:text-white"
-            >
-              Demo Unavailable
-            </h3>
-            <p class="text-xs text-slate-500 font-medium">Under Construction</p>
-          </div>
-        </div>
-        <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
-          Demo or guest mode is currently not available yet. Please check back
-          later.
-        </p>
-        <div class="flex justify-end">
-          <button
-            @click="showGuestModal = false"
-            class="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  </teleport>
 </div>
 </template>
 
@@ -354,7 +290,9 @@ const adminUsername = ref("");
 const pin = ref("");
 const errorMsg = ref("");
 const isLoading = ref(false);
-const showGuestModal = ref(false);
+// Tautan ke situs demo (terpisah dari data produksi). Disembunyikan di situs demo sendiri.
+const demoUrl = import.meta.env.VITE_DEMO_URL || "https://kaswarga-demo.netlify.app";
+const showDemoLink = import.meta.env.VITE_APP_MODE !== "demo";
 const showPin = ref(false);
 
 function enforceNumeric(event) {
@@ -456,9 +394,6 @@ async function handleLogin() {
   }
 }
 
-function enterGuestMode(role) {
-  showGuestModal.value = true;
-}
 </script>
 
 <style scoped>
