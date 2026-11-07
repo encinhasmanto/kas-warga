@@ -1,6 +1,6 @@
 <template>
   <GlobalErrorBoundary>
-    <router-view />
+    <NuxtPage />
     <MaintenanceOverlay />
   </GlobalErrorBoundary>
 </template>

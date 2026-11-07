@@ -1,9 +1,6 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
-
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes: [
+// Rute didefinisikan manual (bukan file-based) agar nama, meta, dan URL hash lama tetap sama.
+export default {
+  routes: () => [
     {
       path: '/',
       name: 'login',
@@ -83,28 +80,4 @@ const router = createRouter({
       redirect: '/',
     },
   ],
-})
-
-// Navigation guard — redirect to login if not authenticated and check roles
-router.beforeEach((to, from) => {
-  const { isLoggedIn, isAdmin, isSuperAdmin } = useAuth();
-
-  // 1. Check if the route requires authentication
-  if (to.meta.requiresAuth && !isLoggedIn.value) {
-    return { name: 'login' }; // Simply return the destination
-  }
-
-  // 2. Check for Admin-only routes
-  if (to.meta.requiresAdmin && !isAdmin.value) {
-    return { name: 'dashboard' }; // Redirect unauthorized residents back to dashboard
-  }
-
-  // 3. Check for Super Admin-only routes
-  if (to.meta.requiresSuperAdmin && !isSuperAdmin.value) {
-    return { name: 'dashboard' };
-  }
-
-  // If we reach here, navigation is allowed automatically!
-});
-
-export default router
+}
