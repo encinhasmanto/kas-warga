@@ -2,6 +2,15 @@
   <div
     class="bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center p-0 md:p-8 relative"
   >
+    <!-- Demo Ribbon -->
+    <div
+      v-if="isDemo"
+      class="fixed top-0 inset-x-0 z-50 bg-amber-400 text-amber-950 text-xs sm:text-sm font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-2 shadow-sm"
+    >
+      <span class="material-symbols-outlined text-base">science</span>
+      <span>MODE DEMO &mdash; semua data fiktif, bukan data warga sebenarnya</span>
+    </div>
+
     <!-- Background Pattern (for entire page on desktop) -->
     <div
       class="fixed inset-0 z-0 opacity-[0.03] pointer-events-none hidden md:block"
@@ -43,7 +52,13 @@
           <h1
             class="font-extrabold tracking-tight mb-4 leading-tight text-[clamp(2.5rem,5vw,3.75rem)]"
           >
-            <span style="color: #ba9c6d">KasWarga</span> <br />
+            <span style="color: #ba9c6d">KasWarga</span>
+            <span
+              v-if="isDemo"
+              class="align-middle ml-2 text-xs font-bold tracking-widest bg-amber-400 text-amber-950 px-2.5 py-1 rounded-full"
+              >DEMO</span
+            >
+            <br />
             <span
               class="font-bold opacity-90 block mt-2 text-[clamp(1.125rem,2vw,1.5rem)]"
               ><span class="text-[clamp(0.875rem,1.5vw,1.125rem)]">by</span>
@@ -85,12 +100,21 @@
             />
           </div>
           <h2
-            class="text-slate-900 dark:text-slate-100 text-3xl font-bold tracking-tight"
+            class="text-slate-900 dark:text-slate-100 text-3xl font-bold tracking-tight flex items-center gap-3"
           >
             Sign In
+            <span
+              v-if="isDemo"
+              class="text-xs font-bold tracking-widest bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700 px-2.5 py-1 rounded-full"
+              >DEMO</span
+            >
           </h2>
           <p class="text-slate-500 dark:text-slate-400 text-base mt-2">
-            Enter your Unit Number and PIN.
+            {{
+              isDemo
+                ? "Coba langsung dengan akun demo di bawah, atau masukkan Unit dan PIN."
+                : "Enter your Unit Number and PIN."
+            }}
           </p>
         </div>
 
@@ -244,9 +268,16 @@
           class="bg-slate-50 dark:bg-slate-800/50 p-6 md:px-12 border-t border-slate-200 dark:border-slate-800 mt-auto"
         >
           <p
-            class="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4"
+            class="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest"
+            :class="isDemo ? 'mb-1' : 'mb-4'"
           >
-            Guest Access & Demos
+            {{ isDemo ? "Masuk Cepat (Akun Demo)" : "Guest Access & Demos" }}
+          </p>
+          <p
+            v-if="isDemo"
+            class="text-center text-[11px] text-slate-400 mb-4"
+          >
+            Satu ketukan langsung masuk sebagai peran yang dipilih.
           </p>
           <div class="grid grid-cols-3 gap-2">
             <button
@@ -281,7 +312,9 @@
 
         <!-- Mobile Footer Info -->
         <div class="md:hidden mt-6 pb-6 flex flex-col items-center gap-3">
-          <p class="text-[10px] text-slate-400">&copy; 2026 PTTH</p>
+          <p class="text-[10px] text-slate-400">
+            &copy; 2026 PTTH{{ isDemo ? " · Lingkungan Demo" : "" }}
+          </p>
         </div>
       </div>
     </div>
@@ -337,7 +370,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   authenticateResident,
@@ -357,6 +390,20 @@ const isLoading = ref(false);
 const showGuestModal = ref(false);
 const showPin = ref(false);
 
+// Mode demo diaktifkan lewat env var (hanya diset di situs Netlify demo).
+const isDemo = import.meta.env.VITE_DEMO_MODE === "true";
+
+// Akun khusus database demo (data fiktif).
+const DEMO_ACCOUNTS = {
+  Resident: { unit: "A1", username: "", pin: "123456" },
+  Admin: { unit: "Admin", username: "demo_admin", pin: "135790" },
+  "Super Admin": { unit: "Admin", username: "demo_super", pin: "246810" },
+};
+
+onMounted(() => {
+  if (isDemo) document.title = "KasWarga (DEMO)";
+});
+
 function enforceNumeric(event) {
   const cleaned = event.target.value.replace(/\D/g, "");
   pin.value = cleaned;
@@ -373,6 +420,12 @@ function onUnitChange() {
 }
 
 function handleForgotPin() {
+  if (isDemo) {
+    // Jangan arahkan ke WhatsApp bendahara asli dari lingkungan demo.
+    errorMsg.value =
+      "Mode demo: PIN warga 123456. Gunakan tombol Masuk Cepat di bawah.";
+    return;
+  }
   if (!selectedUnit.value || selectedUnit.value === "Admin") {
     alert(
       "Mohon pilih Unit tempat tinggal Bapak/Ibu dahulu sebelum menuju Forget PIN.",
@@ -456,8 +509,18 @@ async function handleLogin() {
   }
 }
 
-function enterGuestMode(role) {
-  showGuestModal.value = true;
+async function enterGuestMode(role) {
+  if (!isDemo) {
+    showGuestModal.value = true;
+    return;
+  }
+  const acc = DEMO_ACCOUNTS[role];
+  if (!acc) return;
+  selectedUnit.value = acc.unit;
+  adminUsername.value = acc.username;
+  pin.value = acc.pin;
+  errorMsg.value = "";
+  await handleLogin();
 }
 </script>
 
