@@ -14,7 +14,7 @@ Aplikasi pencatatan kas warga untuk satu kompleks perumahan — iuran bulanan (I
 
 **<https://kaswarga-demo.netlify.app>**
 
-Pada aplikasi yang sebenarnya, halaman login (kiri) menampilkan satu tombol **Guest & Demo** yang membuka situs demo ini di tab baru. Di situs demo (kanan), tombol **Masuk Cepat** langsung memasukkan Anda tanpa kredensial.
+Situs demo berjalan di database terpisah dengan data dummy. Pada aplikasi yang sebenarnya, halaman login (kiri) menampilkan satu tombol **Guest & Demo** yang membuka situs demo ini di tab baru. Di situs demo (kanan), tombol **Masuk Cepat** langsung memasukkan Anda tanpa kredensial.
 
 <p align="center">
   <img src="docs/screenshots/00-login-produksi.jpg" alt="Halaman login aplikasi KasWarga yang sebenarnya, dengan tombol Guest &amp; Demo" width="300">
