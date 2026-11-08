@@ -14,8 +14,6 @@ Aplikasi pencatatan kas warga untuk satu kompleks perumahan — iuran bulanan (I
 
 **<https://kaswarga-demo.netlify.app>**
 
-Situs demo berjalan di database terpisah dengan data dummy. Tidak perlu kredensial: di bagian bawah halaman login ada **Masuk Cepat** dengan tiga tombol — Resident, Admin, dan Super — yang langsung memasukkan Anda sebagai peran tersebut dalam satu ketukan.
-
 Pada aplikasi yang sebenarnya, halaman login (kiri) menampilkan satu tombol **Guest & Demo** yang membuka situs demo ini di tab baru. Di situs demo (kanan), tombol **Masuk Cepat** langsung memasukkan Anda tanpa kredensial.
 
 <p align="center">
