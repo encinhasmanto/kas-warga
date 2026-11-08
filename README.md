@@ -1,6 +1,6 @@
 # KasWarga
 
-Aplikasi pencatatan kas warga untuk satu kompleks perumahan — iuran bulanan (IPL), iuran tahunan (THR), pengeluaran komunitas, dan papan pengumuman dalam satu tempat.
+Aplikasi pencatatan kas warga untuk satu kompleks perumahan — iuran bulanan (IPL), iuran tahunan (THR), pengeluaran kompleks, dan papan pengumuman dalam satu tempat.
 
 ![Nuxt](https://img.shields.io/badge/Nuxt-4.6-00DC82?logo=nuxt&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vuedotjs&logoColor=white)
@@ -16,11 +16,13 @@ Aplikasi pencatatan kas warga untuk satu kompleks perumahan — iuran bulanan (I
 
 Situs demo berjalan di database terpisah dengan data contoh, sehingga tidak ada data warga asli di dalamnya. Tidak perlu kredensial: di bagian bawah halaman login ada **Masuk Cepat** dengan tiga tombol — Resident, Admin, dan Super — yang langsung memasukkan Anda sebagai peran tersebut dalam satu ketukan.
 
-<p align="center">
-  <img src="docs/screenshots/01-login-demo.jpg" alt="Halaman login situs demo" width="340">
-</p>
+Pada aplikasi yang sebenarnya, halaman login (kiri) menampilkan satu tombol **Guest & Demo** yang membuka situs demo ini di tab baru. Di situs demo (kanan), tombol **Masuk Cepat** langsung memasukkan Anda tanpa kredensial.
 
-Pada aplikasi yang sebenarnya, halaman login menampilkan satu tombol **Guest & Demo** yang membuka situs demo ini di tab baru.
+<p align="center">
+  <img src="docs/screenshots/00-login-produksi.jpg" alt="Halaman login aplikasi KasWarga yang sebenarnya, dengan tombol Guest &amp; Demo" width="300">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/01-login-demo.jpg" alt="Halaman login situs demo dengan Masuk Cepat" width="300">
+</p>
 
 ---
 
@@ -28,9 +30,9 @@ Pada aplikasi yang sebenarnya, halaman login menampilkan satu tombol **Guest & D
 
 ### Untuk warga
 
-- **Dashboard pribadi** — saldo kas komunitas, tagihan yang jatuh tempo berikutnya, dan ringkasan pembayaran unit sendiri.
+- **Dashboard pribadi** — saldo kas kompleks, tagihan yang jatuh tempo berikutnya, dan ringkasan pembayaran unit sendiri.
 - **Tracker pembayaran tahunan** — status IPL tiap bulan dan THR tahunan, ditandai lunas, terlambat, atau belum jatuh tempo.
-- **Riwayat transaksi** — pembayaran unit sendiri digabung dengan pengeluaran komunitas, dengan pencarian, filter, dan ekspor CSV.
+- **Riwayat transaksi** — pembayaran unit sendiri digabung dengan pengeluaran kompleks, dengan pencarian, filter, dan ekspor CSV.
 - **Panduan pembayaran** — QRIS sesuai nominal tagihan, atau pilih sendiri tagihan mana yang akan dibayar.
 - **Papan pengumuman** — pengumuman pengurus beserta lampiran gambar, video, atau PDF.
 - **Pembaruan realtime** — pengumuman baru dan pembayaran yang tercatat muncul tanpa memuat ulang halaman.
@@ -195,7 +197,7 @@ KasWarga memakai Postgres di Supabase. Tabel utamanya:
 | `admins` | Akun pengurus |
 | `payment_events` | Jenis iuran, misalnya bulanan dan tahunan |
 | `payment_obligations` | Tagihan per unit per periode beserta statusnya |
-| `transactions` | Buku kas: pemasukan dan pengeluaran komunitas |
+| `transactions` | Buku kas: pemasukan dan pengeluaran kompleks |
 | `transaction_categories` | Kategori pemasukan dan pengeluaran |
 | `bulletins` | Pengumuman di papan informasi |
 | `audit_logs` | Rekam jejak tindakan penting |
